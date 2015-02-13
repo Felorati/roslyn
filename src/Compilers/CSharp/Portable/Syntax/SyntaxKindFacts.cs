@@ -932,6 +932,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return SyntaxKind.ImplicitKeyword;
                 case "explicit":
                     return SyntaxKind.ExplicitKeyword;
+                case "atomic":
+                    return SyntaxKind.AtomicKeyword;
+                case "retry":
+                    return SyntaxKind.RetryKeyword;
+                case "orelse":
+                    return SyntaxKind.OrelseKeyword;
                 default:
                     return SyntaxKind.None;
             }
@@ -1496,6 +1502,12 @@ namespace Microsoft.CodeAnalysis.CSharp
                     return "restore";
                 case SyntaxKind.ReferenceKeyword:
                     return "r";
+                case SyntaxKind.AtomicKeyword:
+                    return "atomic";
+                case SyntaxKind.RetryKeyword:
+                    return "retry";
+                case SyntaxKind.OrelseKeyword:
+                    return "orelse";
 
                 // contextual keywords
                 case SyntaxKind.YieldKeyword:

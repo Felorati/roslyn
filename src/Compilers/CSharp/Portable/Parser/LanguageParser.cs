@@ -6399,6 +6399,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
         {
             switch (this.CurrentToken.Kind)
             {
+                case SyntaxKind.AtomicKeyword:
+                    return this.ParseAtomicBlock();
                 case SyntaxKind.FixedKeyword:
                     return this.ParseFixedStatement();
                 case SyntaxKind.BreakKeyword:
@@ -6957,6 +6959,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             var tk = this.CurrentToken.Kind;
             switch (tk)
             {
+                case SyntaxKind.AtomicKeyword:
                 case SyntaxKind.FixedKeyword:
                 case SyntaxKind.BreakKeyword:
                 case SyntaxKind.ContinueKeyword:
@@ -7531,6 +7534,17 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
             var semicolon = this.EatToken(SyntaxKind.SemicolonToken);
             return _syntaxFactory.GotoStatement(kind, @goto, caseOrDefault, arg, semicolon);
+        }
+        
+
+        private StatementSyntax ParseAtomicBlock()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.AtomicKeyword);
+            var atomic = this.EatToken(SyntaxKind.AtomicKeyword);
+            var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
+            var statement = this.ParseEmbeddedStatement(false);
+            var closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
+            return statement;
         }
 
         private IfStatementSyntax ParseIfStatement()

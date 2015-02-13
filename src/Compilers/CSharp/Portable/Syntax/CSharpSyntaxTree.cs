@@ -390,7 +390,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     {
                         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
                         var tree = new ParsedSyntaxTree(text, text.Encoding, text.ChecksumAlgorithm, path, options, compilationUnit, parser.Directives);
-                        tree.VerifySource();
+                        //tree.VerifySource();
                         return tree;
                     }
                 }

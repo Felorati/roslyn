@@ -157,6 +157,9 @@ namespace Microsoft.CodeAnalysis.CSharp
         OperatorKeyword = 8382,
         ExplicitKeyword = 8383,
         ImplicitKeyword = 8384,
+        AtomicKeyword = 8385,
+        RetryKeyword = 8386,
+        OrelseKeyword = 8387,
 
         // contextual keywords
         YieldKeyword = 8405,
