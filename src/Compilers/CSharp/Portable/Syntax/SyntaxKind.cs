@@ -469,6 +469,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         CatchDeclaration = 8827,
         CatchFilterClause = 8828,
         FinallyClause = 8829,
+        AtomicStatement = 8830,
 
         // declarations
         CompilationUnit = 8840,

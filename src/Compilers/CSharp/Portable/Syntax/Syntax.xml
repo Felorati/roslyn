@@ -1943,6 +1943,32 @@
     </Field>
     <Field Name="Statement" Type="StatementSyntax"/>
   </Node>
+  <Node Name="AtomicStatementSyntax" Base="StatementSyntax">
+    <Kind Name="AtomicStatement"/>
+    <Field Name="AtomicKeyword" Type="SyntaxToken">
+      <Kind Name="AtomicKeyword"/>
+      <PropertyComment>
+        <summary>
+          Gets a SyntaxToken that represents the atomic keyword.
+        </summary>
+      </PropertyComment>
+    </Field>
+    <Field Name="Statement" Type="StatementSyntax">
+      <PropertyComment>
+        <summary>
+          Gets a StatementSyntax the represents the statement to be executed when the condition is true.
+        </summary>
+      </PropertyComment>
+    </Field>
+    <TypeComment>
+      <summary>
+        Represents an atomic block syntax.
+      </summary>
+    </TypeComment>
+    <FactoryComment>
+      <summary>Creates an AtomicStatementSyntax node</summary>
+    </FactoryComment>
+  </Node>
   <Node Name="IfStatementSyntax" Base="StatementSyntax">
     <Kind Name="IfStatement"/>
     <Field Name="IfKeyword" Type="SyntaxToken">

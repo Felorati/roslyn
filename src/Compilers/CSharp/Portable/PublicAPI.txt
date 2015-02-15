@@ -1946,6 +1946,7 @@ Microsoft.CodeAnalysis.CSharp.SyntaxKind.AttributeArgumentList = 8850
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.AttributeList = 8847
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.AttributeTargetSpecifier = 8848
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.AtomicKeyword = 8385
+Microsoft.CodeAnalysis.CSharp.SyntaxKind.AtomicStatement = 8830
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.AwaitExpression = 8740
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.AwaitKeyword = 8436
 Microsoft.CodeAnalysis.CSharp.SyntaxKind.BackslashToken = 8210
@@ -4434,3 +4435,16 @@ virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxWalker.VisitLeadingTrivia(Micr
 virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxWalker.VisitToken(Microsoft.CodeAnalysis.SyntaxToken token)
 virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxWalker.VisitTrailingTrivia(Microsoft.CodeAnalysis.SyntaxToken token)
 virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxWalker.VisitTrivia(Microsoft.CodeAnalysis.SyntaxTrivia trivia)
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.AtomicKeyword.get
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Statement.get
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.WithStatement(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.WithAtomicKeyword(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword)
+override Microsoft.CodeAnalysis.CSharp.CSharpSyntaxRewriter.VisitAtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax node)
+override Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Accept(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor visitor)
+override Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Accept<TResult>(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult> visitor)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AtomicStatement(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor.VisitAtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax node)
+virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult>.VisitAtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax node)

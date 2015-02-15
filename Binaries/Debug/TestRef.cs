@@ -6,10 +6,10 @@ namespace TestRefNamespace
     {
         private static void Add(int i, int result)
         {
-            
+            /*
             atomic{ 
                 Console.WriteLine("Atomic works");
-            }
+            }*/
             /*
             if (true){ 
                 Console.WriteLine("If3 works");
@@ -20,7 +20,7 @@ namespace TestRefNamespace
 
         static void Main()
         {
-            int total = 20;
+            int total = 20
             System.Console.WriteLine("Original value of 'total': {0}", total);
 
             Add(10, total);

@@ -7544,7 +7544,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
             var statement = this.ParseEmbeddedStatement(false);
             var closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
-            return statement;
+            return _syntaxFactory.AtomicStatement(atomic, statement);
         }
 
         private IfStatementSyntax ParseIfStatement()
