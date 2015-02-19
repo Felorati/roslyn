@@ -470,6 +470,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         CatchFilterClause = 8828,
         FinallyClause = 8829,
         AtomicStatement = 8830,
+        OrelseClause = 8831,
+        RetryStatement = 8832,
 
         // declarations
         CompilationUnit = 8840,

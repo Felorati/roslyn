@@ -6401,6 +6401,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             {
                 case SyntaxKind.AtomicKeyword:
                     return this.ParseAtomicBlock();
+                case SyntaxKind.RetryKeyword:
+                    return this.ParseRetryStatement();
                 case SyntaxKind.FixedKeyword:
                     return this.ParseFixedStatement();
                 case SyntaxKind.BreakKeyword:
@@ -6960,6 +6962,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             switch (tk)
             {
                 case SyntaxKind.AtomicKeyword:
+                case SyntaxKind.RetryKeyword:
                 case SyntaxKind.FixedKeyword:
                 case SyntaxKind.BreakKeyword:
                 case SyntaxKind.ContinueKeyword:
@@ -7535,16 +7538,45 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             var semicolon = this.EatToken(SyntaxKind.SemicolonToken);
             return _syntaxFactory.GotoStatement(kind, @goto, caseOrDefault, arg, semicolon);
         }
-        
+       
+
+
 
         private StatementSyntax ParseAtomicBlock()
         {
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.AtomicKeyword);
             var atomic = this.EatToken(SyntaxKind.AtomicKeyword);
-            var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
             var statement = this.ParseEmbeddedStatement(false);
-            var closeBrace = this.EatToken(SyntaxKind.CloseBraceToken);
-            return _syntaxFactory.AtomicStatement(atomic, statement);
+
+            var orelses = default(SyntaxListBuilder<OrelseSyntax>);
+            if (this.CurrentToken.Kind == SyntaxKind.OrelseKeyword)
+            {
+                orelses = _pool.Allocate<OrelseSyntax>();
+                while (this.CurrentToken.Kind == SyntaxKind.OrelseKeyword)
+                {
+                    var clause = ParseOrelse();
+                    orelses.Add(clause);
+                }
+            }
+                     
+            return _syntaxFactory.AtomicStatement(atomic, statement,orelses);
+        }
+
+        private OrelseSyntax ParseOrelse()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.OrelseKeyword);
+            var keyword = this.EatToken(SyntaxKind.OrelseKeyword);
+            var statement = this.ParseEmbeddedStatement(false);
+
+            return _syntaxFactory.Orelse(keyword, statement);
+        }
+
+        private RetryStatementSyntax ParseRetryStatement()
+        {
+            Debug.Assert(this.CurrentToken.Kind == SyntaxKind.RetryKeyword);
+            var keyword = this.EatToken(SyntaxKind.RetryKeyword);
+            var semi = this.EatToken(SyntaxKind.SemicolonToken);
+            return _syntaxFactory.RetryStatement(keyword, semi);
         }
 
         private IfStatementSyntax ParseIfStatement()

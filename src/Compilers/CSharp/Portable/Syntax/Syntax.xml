@@ -1960,6 +1960,13 @@
         </summary>
       </PropertyComment>
     </Field>
+    <Field Name="Orelses" Type="SyntaxList&lt;OrelseSyntax&gt;">
+      <PropertyComment>
+        <summary>
+          Gets a SyntaxList containing the or else block ascociated with the atomic block.
+        </summary>
+      </PropertyComment>
+    </Field>
     <TypeComment>
       <summary>
         Represents an atomic block syntax.
@@ -1967,6 +1974,54 @@
     </TypeComment>
     <FactoryComment>
       <summary>Creates an AtomicStatementSyntax node</summary>
+    </FactoryComment>
+  </Node>
+   <Node Name="OrelseSyntax" Base="CSharpSyntaxNode">
+    <Kind Name="OrelseClause"/>
+    <Field Name="OrelseKeyword" Type="SyntaxToken">
+      <Kind Name="OrelseKeyword"/>
+      <PropertyComment>
+        <summary>
+          Gets a SyntaxToken that represents the orelse keyword.
+        </summary>
+      </PropertyComment>
+    </Field>
+    <Field Name="Statement" Type="StatementSyntax">
+      <PropertyComment>
+        <summary>
+          Gets a StatementSyntax the represents the statement to be executed
+        </summary>
+      </PropertyComment>
+    </Field>
+    <TypeComment>
+      <summary>
+        Represents an orelse statement syntax.
+      </summary>
+    </TypeComment>
+    <FactoryComment>
+      <summary>Creates an OrElseStatementSyntax node</summary>
+    </FactoryComment>
+  </Node>
+  <Node Name="RetryStatementSyntax" Base="StatementSyntax">
+    <Kind Name="RetryStatement"/>
+    <Field Name="RetryKeyword" Type="SyntaxToken">
+      <Kind Name="RetryKeyword"/>
+      <PropertyComment>
+        <summary>
+          Gets a SyntaxToken that represents the retry keyword.
+        </summary>
+      </PropertyComment>
+    </Field>
+    <Field Name="SemicolonToken" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+    <TypeComment>
+      <summary>
+        Represents a retry statement syntax.
+      </summary>
+    </TypeComment>
+    <FactoryComment>
+      <summary>Creates an RetryStatementSyntax node</summary>
     </FactoryComment>
   </Node>
   <Node Name="IfStatementSyntax" Base="StatementSyntax">

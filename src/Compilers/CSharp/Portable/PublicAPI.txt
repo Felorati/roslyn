@@ -4438,13 +4438,46 @@ virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxWalker.VisitTrivia(Microsoft.C
 Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax
 Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.AtomicKeyword.get
 Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Statement.get
-Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Orelses.get
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax> orelses)
 Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.WithStatement(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
 Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.WithAtomicKeyword(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword)
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.AddOrelses(params Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax[] items)
+Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.WithOrelses(Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax> orelses)
 override Microsoft.CodeAnalysis.CSharp.CSharpSyntaxRewriter.VisitAtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax node)
 override Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Accept(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor visitor)
 override Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax.Accept<TResult>(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult> visitor)
-static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AtomicStatement(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AtomicStatement(Microsoft.CodeAnalysis.SyntaxToken atomicKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax> orelses)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement, Microsoft.CodeAnalysis.SyntaxList<Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax> orelses)
 static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.AtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
 virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor.VisitAtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax node)
 virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult>.VisitAtomicStatement(Microsoft.CodeAnalysis.CSharp.Syntax.AtomicStatementSyntax node)
+Microsoft.CodeAnalysis.CSharp.SyntaxKind.RetryStatement = 8832
+Microsoft.CodeAnalysis.CSharp.SyntaxKind.OrelseClause = 8831
+Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax
+Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.OrelseKeyword.get
+Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.Statement.get
+Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken orelseKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.WithStatement(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.WithOrelseKeyword(Microsoft.CodeAnalysis.SyntaxToken orelseKeyword)
+override Microsoft.CodeAnalysis.CSharp.CSharpSyntaxRewriter.VisitOrelse(Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax node)
+override Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.Accept<TResult>(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult> visitor)
+override Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.Accept(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor visitor)
+override Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax.Accept<TResult>(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult> visitor)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.Orelse(Microsoft.CodeAnalysis.SyntaxToken orelseKeyword, Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.Orelse(Microsoft.CodeAnalysis.CSharp.Syntax.StatementSyntax statement)
+virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor.VisitOrelse(Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax node)
+virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult>.VisitOrelse(Microsoft.CodeAnalysis.CSharp.Syntax.OrelseSyntax node)
+Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax
+Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.RetryKeyword.get
+Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.SemicolonToken.get
+Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.Update(Microsoft.CodeAnalysis.SyntaxToken retryKeyword, Microsoft.CodeAnalysis.SyntaxToken semicolonToken)
+Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.WithRetryKeyword(Microsoft.CodeAnalysis.SyntaxToken retryKeyword)
+Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.WithSemicolonToken(Microsoft.CodeAnalysis.SyntaxToken semicolonToken)
+override Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.Accept(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor visitor)
+override Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax.Accept<TResult>(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult> visitor)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.RetryStatement(Microsoft.CodeAnalysis.SyntaxToken retryKeyword, Microsoft.CodeAnalysis.SyntaxToken semicolonToken)
+static Microsoft.CodeAnalysis.CSharp.SyntaxFactory.RetryStatement()
+override Microsoft.CodeAnalysis.CSharp.CSharpSyntaxRewriter.VisitRetryStatement(Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax node)
+virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor.VisitRetryStatement(Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax node)
+virtual Microsoft.CodeAnalysis.CSharp.CSharpSyntaxVisitor<TResult>.VisitRetryStatement(Microsoft.CodeAnalysis.CSharp.Syntax.RetryStatementSyntax node)
