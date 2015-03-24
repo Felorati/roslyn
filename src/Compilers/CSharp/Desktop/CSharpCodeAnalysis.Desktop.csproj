@@ -24,6 +24,10 @@
     <Reference Include="System.Globalization" />
   </ItemGroup>
   <ItemGroup Label="Project References">
+    <ProjectReference Include="..\..\..\STMExtension\STMExtension.csproj">
+      <Project>{a4acee4a-7f99-47bb-b705-4290dedc08a1}</Project>
+      <Name>STMExtension</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Core\Desktop\CodeAnalysis.Desktop.csproj">
       <Project>{dfa21ca1-7f96-47ee-940c-069858e81727}</Project>
       <Name>CodeAnalysis.Desktop</Name>

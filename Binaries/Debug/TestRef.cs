@@ -6,12 +6,13 @@ namespace TestRefNamespace
     {
         private static void Add(int i, int result)
         {
-            /*
             atomic{
                 Console.WriteLine("Atomic works");
-				retry;
-				Console.WriteLine("Atomic works");
+				//retry;
+				//Console.WriteLine("Atomic works");
+				//int hello;
             }
+            /*
 			orelse
 			{
 				Console.WriteLine("Orelse works");

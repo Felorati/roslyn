@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using Roslyn.Utilities;
+using STMExtension; //Vores projekt
 
 namespace Microsoft.CodeAnalysis.CSharp
 {
@@ -143,6 +144,9 @@ namespace Microsoft.CodeAnalysis.CSharp
             }
 
             var strongNameProvider = new LoggingStrongNameProvider(Arguments.KeyFileSearchPaths, touchedFilesLogger);
+
+            //Indsæt change
+            STM.Extend(ref trees);
 
             var compilation = CSharpCompilation.Create(
                 Arguments.CompilationName,
