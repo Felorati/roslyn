@@ -15,7 +15,7 @@ namespace STMExtension
         {
             if(trees.Count() > 1)
             {
-                throw new Exception("There are more than one syntax tree in trees");
+                throw new Exception("There are more than one syntax tree in trees: Undefined behaviour.");
             }
 
             var tree = trees.First();
@@ -23,11 +23,11 @@ namespace STMExtension
             var rootDesNodes = root.DescendantNodes().ToList();
             var atomicNodes = rootDesNodes.Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
 
-            //List<ExpressionStatementSyntax> newAtomicNodes = new List<ExpressionStatementSyntax>();
-            //TODO: Lav i stedet et diconary, som nye noder og gamle atomic noder tilføjes til, og til sidst en gang lave et nyt 
-                //syntax træ (efter foreach'en)
+            var replaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>(); //TODO: Replace the second generic type (ExpressionStatementSyntax), when we know it
+            //var textBefore = root.GetText().ToString();
 
-            foreach (var aNode in atomicNodes)
+            int helloInc = 0; //this is just for testing incrementing atomics
+            foreach (AtomicStatementSyntax aNode in atomicNodes)
             {
                 //var adesnodes = anode.descendantnodes().tolist();
                 //var ablock = adesnodes.where(node => node.iskind(syntaxkind.block)).tolist();
@@ -40,26 +40,25 @@ namespace STMExtension
                 ////byg lamda expressions op ud fra de noder der er i atomic blocken.
                 ////var lambda = syntaxfactory.simplelambdaexpression
 
-                var arg1 = SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
+                var arg = SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
                     SyntaxKind.StringLiteralExpression,
-                    SyntaxFactory.Literal("hello")));
+                    SyntaxFactory.Literal("hello" + helloInc)));
 
                 var newNode = SyntaxFactory.ExpressionStatement(
                 SyntaxFactory.InvocationExpression(
                     SyntaxFactory.ParseName("System.Console.WriteLine"),
                     SyntaxFactory.ArgumentList(
                         arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(
-                            new List<ArgumentSyntax>() { arg1 }))));
-                var newRoot = tree.GetRoot().ReplaceNode(aNode, newNode);
-                var text = newRoot.GetText().ToString();
-                SyntaxTree oldTree = trees[0];
-                SyntaxTree newTree = SyntaxFactory.SyntaxTree(newRoot, oldTree.Options, oldTree.FilePath);
-                var ntL = newTree.GetRoot().DescendantNodes().ToList();
-                var atomicNodesInNew = newTree.GetRoot().DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
-                trees[0] = newTree;
-                var atomicNodesInNew2 = trees.First().GetRoot().DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
-                var textAfter = newTree.GetText().ToString();
+                            new List<ArgumentSyntax>() { arg }))));
+
+                replaceDic.Add(aNode, newNode);
+                helloInc++;
             }
+
+            var newRoot = tree.GetRoot().ReplaceNodes(replaceDic.Keys, (oldnode, newnode) => replaceDic[oldnode]);
+            SyntaxTree newTree = SyntaxFactory.SyntaxTree(newRoot, tree.Options, tree.FilePath);
+            trees[0] = newTree;
+            //var textAfter = newTree.GetText().ToString();
         }
     }
 }

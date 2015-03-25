@@ -12,6 +12,8 @@ namespace TestRefNamespace
 				//Console.WriteLine("Atomic works");
 				//int hello;
             }
+			atomic{
+			}
             /*
 			orelse
 			{
