@@ -1307,5 +1307,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         ERR_NameofExtensionMethod = 8093,
         WRN_AlignmentMagnitude = 8094,
         ERR_ContantStringTooLong = 8095,
+        ERR_ReadonlyAtomicField  = 8096,
+        ERR_ConstAtomicField = 8097,
     }
 }

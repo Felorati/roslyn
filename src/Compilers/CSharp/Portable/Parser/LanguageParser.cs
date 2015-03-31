@@ -1254,7 +1254,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             Volatile = 0x1000,
             Unsafe = 0x2000,
             Partial = 0x4000,
-            Async = 0x8000
+            Async = 0x8000,
+            Atomic = 0x16000
         }
 
         private const SyntaxModifier AccessModifiers = SyntaxModifier.Public | SyntaxModifier.Internal | SyntaxModifier.Protected | SyntaxModifier.Private;
@@ -1263,6 +1264,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
         {
             switch (token.Kind)
             {
+                case SyntaxKind.AtomicKeyword:
+                    return SyntaxModifier.Atomic;
                 case SyntaxKind.PublicKeyword:
                     return SyntaxModifier.Public;
                 case SyntaxKind.InternalKeyword:
@@ -4407,11 +4410,45 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             try
             {
                 this.ParseVariableDeclarators(type, flags: 0, variables: variables, parentKind: parentKind);
-
                 var semicolon = this.EatToken(SyntaxKind.SemicolonToken);
+
+                var tokenList = modifiers.ToTokenList();
+                bool hasReadonly = false;
+                bool hasAtomic = false;
+                foreach (var item in tokenList)
+                {
+                    var mod = GetModifier(item);
+                    if (mod == SyntaxModifier.ReadOnly)
+                    {
+                        hasReadonly = true;
+                    }
+                    else if (mod == SyntaxModifier.Atomic)
+                    {
+                        hasAtomic = true;
+                    }
+                }
+
+                if (hasReadonly && hasAtomic)
+                {
+                    SyntaxListBuilder builder = new SyntaxListBuilder(modifiers.Count);
+                    foreach (var item in tokenList)
+                    {
+                        var mod = GetModifier(item);
+                        if (mod == SyntaxModifier.ReadOnly)
+                        {
+                            builder.Add(this.AddError(item, ErrorCode.ERR_ReadonlyAtomicField));
+                        }
+                        else
+                        {
+                            builder.Add(item);
+                        }
+                    }
+                    tokenList = builder.ToTokenList();
+                }
+
                 return _syntaxFactory.FieldDeclaration(
                     attributes,
-                    modifiers.ToTokenList(),
+                    tokenList,
                     _syntaxFactory.VariableDeclaration(type, variables),
                     semicolon);
             }
@@ -4849,7 +4886,26 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
         private FieldDeclarationSyntax ParseConstantFieldDeclaration(SyntaxListBuilder<AttributeListSyntax> attributes, SyntaxListBuilder modifiers, SyntaxKind parentKind)
         {
             var constToken = this.EatToken(SyntaxKind.ConstKeyword);
-            modifiers.Add(constToken);
+
+            bool hasAtomic = false;
+            foreach (var item in modifiers.ToTokenList())
+            {
+                var mod = GetModifier(item);
+                if (mod == SyntaxModifier.Atomic)
+                {
+                    hasAtomic = true;
+                    break;
+                }
+            }
+
+            if (hasAtomic)
+            {
+                modifiers.Add(this.AddError(constToken, ErrorCode.ERR_ConstAtomicField));
+            }
+            else
+            {
+                modifiers.Add(constToken);
+            }
 
             var type = this.ParseType(false);
 
@@ -4858,6 +4914,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             {
                 this.ParseVariableDeclarators(type, VariableFlags.Const, variables, parentKind);
                 var semicolon = this.EatToken(SyntaxKind.SemicolonToken);
+
                 return _syntaxFactory.FieldDeclaration(
                     attributes,
                     modifiers.ToTokenList(),
@@ -7539,9 +7596,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             return _syntaxFactory.GotoStatement(kind, @goto, caseOrDefault, arg, semicolon);
         }
        
-
-
-
         private StatementSyntax ParseAtomicBlock()
         {
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.AtomicKeyword);

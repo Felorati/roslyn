@@ -2780,6 +2780,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Transactional variables can not be declared const.
+        /// </summary>
+        internal static string ERR_ConstAtomicField {
+            get {
+                return ResourceManager.GetString("ERR_ConstAtomicField", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Constant value &apos;{0}&apos; cannot be converted to a &apos;{1}&apos;.
         /// </summary>
         internal static string ERR_ConstOutOfRange {
@@ -7258,6 +7267,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         internal static string ERR_RbraceExpected {
             get {
                 return ResourceManager.GetString("ERR_RbraceExpected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transactional variables can not be declared readonly.
+        /// </summary>
+        internal static string ERR_ReadonlyAtomicField {
+            get {
+                return ResourceManager.GetString("ERR_ReadonlyAtomicField", resourceCulture);
             }
         }
         

@@ -1,0 +1,4 @@
+﻿TODO:
+Parsing of property, parameter and localvariable
+
+DONE:

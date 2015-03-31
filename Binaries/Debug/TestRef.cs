@@ -4,8 +4,22 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+
+        /*
+        private atomic int i = 0;
+        public atomic const int test1 = 1;
+        private static atomic int test2 = 2;
+        private atomic readonly int test3 = 3;
+        */  
+        /*
+        private static void TestMethod(atomic int i)
+        {
+
+        }*/
+
         private static void Add(int i, int result)
         {
+            /*
             atomic{
                 Console.WriteLine("Atomic works");
 				//retry;
@@ -13,7 +27,7 @@ namespace TestRefNamespace
 				//int hello;
             }
 			atomic{
-			}
+			}*/
             /*
 			orelse
 			{

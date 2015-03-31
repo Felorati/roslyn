@@ -130,7 +130,8 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 if (s_resourceManager == null)
                 {
-                    s_resourceManager = new System.Resources.ResourceManager("Microsoft.CodeAnalysis.CSharp.CSharpResources", typeof(ErrorCode).GetTypeInfo().Assembly);
+                    var assembly = typeof(ErrorCode).GetTypeInfo().Assembly;
+                    s_resourceManager = new System.Resources.ResourceManager("Microsoft.CodeAnalysis.CSharp.CSharpResources", assembly);
                 }
 
                 return s_resourceManager;
