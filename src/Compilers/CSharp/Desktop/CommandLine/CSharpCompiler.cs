@@ -138,6 +138,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             var externalReferenceResolver = GetExternalMetadataResolver(touchedFilesLogger);
             MetadataFileReferenceResolver referenceDirectiveResolver;
             var resolvedReferences = ResolveMetadataReferences(externalReferenceResolver, metadataProvider, diagnostics, assemblyIdentityComparer, touchedFilesLogger, out referenceDirectiveResolver);
+
             if (PrintErrors(diagnostics, consoleOutput))
             {
                 return null;
@@ -145,7 +146,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var strongNameProvider = new LoggingStrongNameProvider(Arguments.KeyFileSearchPaths, touchedFilesLogger);
 
-            //Indsæt change
+            //Roslyn tree modification
             STM.Extend(ref trees);
 
             var compilation = CSharpCompilation.Create(
@@ -159,7 +160,14 @@ namespace Microsoft.CodeAnalysis.CSharp
                     WithXmlReferenceResolver(xmlFileResolver).
                     WithSourceReferenceResolver(sourceFileResolver));
 
-            return compilation;
+            //Roslyn reference modification: Loading STM references
+            var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
+            var compWithRef = compilation.AddReferences(MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
+                "STMExtension.dll" //TODO: Have to add the STM library dll instead
+                //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STMExtension.dll")
+                )));
+
+            return compWithRef;
         }
 
         private SyntaxTree ParseFile(
