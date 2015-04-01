@@ -1,4 +1,5 @@
 using System;
+using STMExtension; 
 
 namespace TestRefNamespace
 {
@@ -19,15 +20,17 @@ namespace TestRefNamespace
 
         private static void Add(int i, int result)
         {
-            /*
+            
             atomic{
-                Console.WriteLine("Atomic works");
+				return 5 + 5;
+                //Console.WriteLine("Atomic works");
 				//retry;
 				//Console.WriteLine("Atomic works");
 				//int hello;
             }
 			atomic{
-			}*/
+				return 1+2;
+			}
             /*
 			orelse
 			{
