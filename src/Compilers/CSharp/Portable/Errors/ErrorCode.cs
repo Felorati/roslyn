@@ -1309,5 +1309,10 @@ namespace Microsoft.CodeAnalysis.CSharp
         ERR_ContantStringTooLong = 8095,
         ERR_ReadonlyAtomicField  = 8096,
         ERR_ConstAtomicField = 8097,
+        ERR_BadParamWithAtomic = 8098,
+        ERR_DubAtomicMod = 8099,
+        ERR_BadThisWithAtomic = 8100,
+        ERR_BadRefWithAtomic = 8101,
+        ERR_BadOutWithAtomic = 8102,
     }
 }

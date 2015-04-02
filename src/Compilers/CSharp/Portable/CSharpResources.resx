@@ -4628,4 +4628,19 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
   <data name="ERR_ReadonlyAtomicField" xml:space="preserve">
     <value>Transactional variables can not be declared readonly</value>
   </data>
+  <data name="ERR_BadOutWithAtomic" xml:space="preserve">
+    <value>The parameter modifier 'out' cannot be used with 'atomic'</value>
+  </data>
+  <data name="ERR_BadParamWithAtomic" xml:space="preserve">
+    <value>The parameter modifier 'params' cannot be used with 'atomic'</value>
+  </data>
+  <data name="ERR_BadRefWithAtomic" xml:space="preserve">
+    <value>The parameter modifier 'ref' cannot be used with 'atomic'</value>
+  </data>
+  <data name="ERR_BadThisWithAtomic" xml:space="preserve">
+    <value>The parameter modifier 'this' cannot be used with 'atomic'</value>
+  </data>
+  <data name="ERR_DubAtomicMod" xml:space="preserve">
+    <value>Duplicate 'atomic' modifier</value>
+  </data>
 </root>

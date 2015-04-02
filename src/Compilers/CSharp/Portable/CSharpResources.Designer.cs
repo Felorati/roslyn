@@ -1637,6 +1637,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The parameter modifier &apos;out&apos; cannot be used with &apos;atomic&apos;.
+        /// </summary>
+        internal static string ERR_BadOutWithAtomic {
+            get {
+                return ResourceManager.GetString("ERR_BadOutWithAtomic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to  The parameter modifier &apos;out&apos; cannot be used with &apos;this&apos; .
         /// </summary>
         internal static string ERR_BadOutWithThis {
@@ -1682,6 +1691,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The parameter modifier &apos;params&apos; cannot be used with &apos;atomic&apos;.
+        /// </summary>
+        internal static string ERR_BadParamWithAtomic {
+            get {
+                return ResourceManager.GetString("ERR_BadParamWithAtomic", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid option &apos;{0}&apos; for /platform; must be anycpu, x86, Itanium or x64.
         /// </summary>
         internal static string ERR_BadPlatformType {
@@ -1705,6 +1723,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         internal static string ERR_BadProtectedAccess {
             get {
                 return ResourceManager.GetString("ERR_BadProtectedAccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The parameter modifier &apos;ref&apos; cannot be used with &apos;atomic&apos;.
+        /// </summary>
+        internal static string ERR_BadRefWithAtomic {
+            get {
+                return ResourceManager.GetString("ERR_BadRefWithAtomic", resourceCulture);
             }
         }
         
@@ -1795,6 +1822,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         internal static string ERR_BadThisParam {
             get {
                 return ResourceManager.GetString("ERR_BadThisParam", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The parameter modifier &apos;this&apos; cannot be used with &apos;atomic&apos;.
+        /// </summary>
+        internal static string ERR_BadThisWithAtomic {
+            get {
+                return ResourceManager.GetString("ERR_BadThisWithAtomic", resourceCulture);
             }
         }
         
@@ -3190,6 +3226,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         internal static string ERR_DottedTypeNameNotFoundInNSFwd {
             get {
                 return ResourceManager.GetString("ERR_DottedTypeNameNotFoundInNSFwd", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Duplicate &apos;atomic&apos; modifier.
+        /// </summary>
+        internal static string ERR_DubAtomicMod {
+            get {
+                return ResourceManager.GetString("ERR_DubAtomicMod", resourceCulture);
             }
         }
         

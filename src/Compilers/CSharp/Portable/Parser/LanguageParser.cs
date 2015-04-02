@@ -3961,6 +3961,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                 case SyntaxKind.OutKeyword:
                 case SyntaxKind.ParamsKeyword:
                 case SyntaxKind.ArgListKeyword:
+                case SyntaxKind.AtomicKeyword:
                     return true;
                 case SyntaxKind.ThisKeyword:
                     return allowThisKeyword;
@@ -4116,6 +4117,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             Ref = 0x02,
             Out = 0x04,
             Params = 0x08,
+            Atomic = 0x16
         }
 
         private static ParamFlags GetParamFlags(SyntaxKind kind, bool allowThisKeyword)
@@ -4133,6 +4135,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                     return ParamFlags.Out;
                 case SyntaxKind.ParamsKeyword:
                     return ParamFlags.Params;
+                case SyntaxKind.AtomicKeyword:
+                    return ParamFlags.Atomic;
                 default:
                     return ParamFlags.None;
             }
@@ -4141,7 +4145,90 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
         private void ParseParameterModifiers(SyntaxListBuilder modifiers, bool allowThisKeyword)
         {
             var flags = ParamFlags.None;
+            var refCount = 0;
+            var outCount = 0;
+            var thisCount = 0;
+            var paramsCount = 0;
+            var atomicCount = 0;
+            while (IsParameterModifier(this.CurrentToken.Kind, allowThisKeyword))
+            {
+                var mod = this.EatToken();
+                switch (mod.Kind)
+                {
+                    case SyntaxKind.ThisKeyword:
+                        mod = CheckFeatureAvailability(mod, MessageID.IDS_FeatureExtensionMethod);
+                        thisCount++;
+                        break;
+                    case SyntaxKind.RefKeyword:
+                        refCount++;
+                        break;
+                    case SyntaxKind.OutKeyword:
+                        outCount++;
+                        break;
+                    case SyntaxKind.ParamsKeyword:
+                        paramsCount++;
+                        break;
+                    case SyntaxKind.AtomicKeyword:
+                        atomicCount++;
+                        break;
+                }
 
+                if (refCount == 2 || outCount == 2 || thisCount == 2 || paramsCount == 2 || atomicCount == 2)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.RefKeyword));
+                }
+                else if (refCount > 2 || outCount > 2 || thisCount > 2 || paramsCount > 2 || atomicCount > 2)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
+                }
+                else if (atomicCount > 0 && refCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadRefWithAtomic);
+                }
+                else if (atomicCount > 0 && outCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadOutWithThis);
+                }
+                else if (atomicCount > 0 && paramsCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadParamWithAtomic);
+                }
+                else if (atomicCount > 0 && thisCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadThisWithAtomic);
+                }
+                else if (paramsCount > 0 && thisCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadParamModThis);
+                }
+                else if (paramsCount > 0 && refCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_ParamsCantBeRefOut);
+                }
+                else if (paramsCount > 0 && outCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_ParamsCantBeRefOut);
+                }
+                else if (paramsCount > 0 && (refCount > 0 || outCount > 0 || thisCount > 0))
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
+                }
+                else if (thisCount > 0 && outCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadOutWithThis);
+                }
+                else if (thisCount > 0 && refCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_BadRefWithThis);
+                }
+                else if (refCount > 0 && outCount > 0)
+                {
+                    mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
+                }
+
+                modifiers.Add(mod);
+            }
+            /*
             while (IsParameterModifier(this.CurrentToken.Kind, allowThisKeyword))
             {
                 var mod = this.EatToken();
@@ -4149,7 +4236,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                 if (mod.Kind == SyntaxKind.ThisKeyword ||
                     mod.Kind == SyntaxKind.RefKeyword ||
                     mod.Kind == SyntaxKind.OutKeyword ||
-                    mod.Kind == SyntaxKind.ParamsKeyword)
+                    mod.Kind == SyntaxKind.ParamsKeyword ||
+                    mod.Kind == SyntaxKind.AtomicKeyword)
                 {
                     if (mod.Kind == SyntaxKind.ThisKeyword)
                     {
@@ -4171,6 +4259,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         {
                             mod = this.AddError(mod, ErrorCode.ERR_BadParamModThis);
                         }
+                        else if ((flags & ParamFlags.Atomic) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadThisWithAtomic);
+                        }
                         else
                         {
                             flags |= ParamFlags.This;
@@ -4178,6 +4270,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                     }
                     else if (mod.Kind == SyntaxKind.RefKeyword)
                     {
+                        var test = (flags & ParamFlags.Ref);
                         if ((flags & ParamFlags.Ref) != 0)
                         {
                             mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.RefKeyword));
@@ -4193,6 +4286,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         else if ((flags & ParamFlags.Out) != 0)
                         {
                             mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
+                        }
+                        else if ((flags & ParamFlags.Atomic) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadRefWithAtomic);
                         }
                         else
                         {
@@ -4217,6 +4314,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         {
                             mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
                         }
+                        else if ((flags & ParamFlags.Atomic) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadOutWithAtomic);
+                        }
                         else
                         {
                             flags |= ParamFlags.Out;
@@ -4236,15 +4337,46 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         {
                             mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
                         }
+                        else if ((flags & ParamFlags.Atomic) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadParamWithAtomic);
+                        }
                         else
                         {
                             flags |= ParamFlags.Params;
                         }
                     }
+                    else if (mod.Kind == SyntaxKind.AtomicKeyword)
+                    {
+                        if ((flags & ParamFlags.Atomic) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.ParamsKeyword));
+                        }
+                        else if ((flags & ParamFlags.This) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadThisWithAtomic);
+                        }
+                        else if ((flags & ParamFlags.Out) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadOutWithAtomic);
+                        }
+                        else if ((flags & ParamFlags.Ref) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadRefWithAtomic);
+                        }
+                        else if ((flags & ParamFlags.Params) != 0)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_BadParamWithAtomic);
+                        }
+                        else
+                        {
+                            flags |= ParamFlags.Atomic;
+                        }
+                    }
                 }
 
                 modifiers.Add(mod);
-            }
+            }*/
         }
 
         private MemberDeclarationSyntax ParseFixedSizeBufferDeclaration(
@@ -4430,7 +4562,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
                 if (hasReadonly && hasAtomic)
                 {
-                    SyntaxListBuilder builder = new SyntaxListBuilder(modifiers.Count);
+                    var builder = new SyntaxListBuilder(modifiers.Count);
                     foreach (var item in tokenList)
                     {
                         var mod = GetModifier(item);

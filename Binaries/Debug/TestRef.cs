@@ -5,19 +5,76 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-
         /*
         private atomic int i = 0;
         public atomic const int test1 = 1;
         private static atomic int test2 = 2;
         private atomic readonly int test3 = 3;
-        */  
+        */
+        
+        private static void AtomicParamTest(atomic int i)
+        {
+
+        }
+
         /*
-        private static void TestMethod(atomic int i)
+        private static void RefRefTest(ref ref int x)
+        {
+
+        }
+
+        private static void TestMethod(atomic ref int i1, atomic out int i2)
+        {
+
+        }
+
+        private static void TestMethod(ref atomic int i1, out atomic int i2)
+        {
+
+        }
+
+
+        private static void ThisTest(this atomic int i3)
+        {
+
+        }
+
+        private static void ThisTest2(this ref int i3)
+        {
+            
+        }
+
+        private static void ThisTest3(this out int i3)
+        {
+
+        }
+
+        private static void ThisParams(this params string[] s2)
+        {
+
+        }
+
+
+        private static void RefOutTest(ref out int x)
+        {
+
+        }
+
+        private static void ParamsTest(atomic params string[] s1)
+        {
+
+        }
+
+        private static void ParamsOut(params out string[] s2)
+        {
+
+        }
+
+        private static void ParamsOut(params ref string[] s2)
         {
 
         }*/
-
+        
         private static void Add(int i, int result)
         {
             
@@ -47,6 +104,7 @@ namespace TestRefNamespace
             if (true){ 
                 Console.WriteLine("If3 works");
 				Console.WriteLine("If4 works");
+                Console.WriteLine("If5 works");
             }
             result += 1;
             return;
