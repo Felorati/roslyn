@@ -4643,4 +4643,10 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
   <data name="ERR_DubAtomicMod" xml:space="preserve">
     <value>Duplicate 'atomic' modifier</value>
   </data>
+  <data name="ERR_AtomicAccessorWithBody" xml:space="preserve">
+    <value>Only auto generated properties can be declared atomic</value>
+  </data>
+  <data name="ERR_AtomicMethodDeclaration" xml:space="preserve">
+    <value>Methods can not be declared atomic</value>
+  </data>
 </root>

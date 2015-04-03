@@ -656,6 +656,24 @@ namespace Microsoft.CodeAnalysis.CSharp {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Only auto generated properties can be declared atomic.
+        /// </summary>
+        internal static string ERR_AtomicAccessorWithBody {
+            get {
+                return ResourceManager.GetString("ERR_AtomicAccessorWithBody", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Methods can not be declared atomic.
+        /// </summary>
+        internal static string ERR_AtomicMethodDeclaration {
+            get {
+                return ResourceManager.GetString("ERR_AtomicMethodDeclaration", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to &apos;{0}&apos;: an attribute argument cannot use type parameters.
         /// </summary>
         internal static string ERR_AttrArgWithTypeVars {

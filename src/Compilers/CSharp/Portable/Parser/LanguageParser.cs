@@ -2935,6 +2935,30 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             SyntaxToken identifier,
             TypeParameterListSyntax typeParameterList)
         {
+            ///Handle atomic method decl
+            if (modifiers.Any(SyntaxKind.AtomicKeyword))
+            {
+                var buffer = new List<SyntaxToken>();
+                foreach (var token in modifiers.ToTokenList())
+                {
+                    if (token.Kind == SyntaxKind.AtomicKeyword)
+                    {
+                        buffer.Add(this.AddError(token, ErrorCode.ERR_AtomicMethodDeclaration));
+                    }
+                    else
+                    {
+                        buffer.Add(token);
+                    }
+                }
+
+                modifiers.Clear();
+
+                foreach (var token in buffer)
+                {
+                    modifiers.Add(token);
+                }
+            }
+
             // Parse the name (it could be qualified)
             var saveTerm = _termState;
             _termState |= TerminatorState.IsEndOfMethodSignature;
@@ -3288,6 +3312,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             SyntaxToken identifier,
             TypeParameterListSyntax typeParameterList)
         {
+
+            //var hasAtomicMod = modifiers.Any(SyntaxKind.AtomicKeyword);
+
+
             // check to see if the user tried to create a generic property.
             if (typeParameterList != null)
             {
@@ -3303,8 +3331,26 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             AccessorListSyntax accessorList = null;
             if (this.CurrentToken.Kind == SyntaxKind.OpenBraceToken)
             {
-                accessorList = this.ParseAccessorList(isEvent: false);
+                accessorList = this.ParseAccessorList(isEvent: false, modifiers: modifiers);
             }
+
+            /*
+            List<SyntaxToken> tempList = new List<SyntaxToken>();
+            if (hasAtomicMod && accessorList != null)
+            {
+                if (accessorList.Accessors.Count != 2)
+                {
+
+                }
+                else
+                {
+                    int i = 0;
+                    foreach (var node in accessorList.Accessors)
+                    {
+                        i++;
+                    }
+                }
+            }*/
 
             ArrowExpressionClauseSyntax expressionBody = null;
             EqualsValueClauseSyntax initializer = null;
@@ -3350,6 +3396,12 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
 
         private AccessorListSyntax ParseAccessorList(bool isEvent)
         {
+            return ParseAccessorList(isEvent, null);
+        }
+
+        private AccessorListSyntax ParseAccessorList(bool isEvent, SyntaxListBuilder modifiers)
+        {
+            var hasAtomicModifier = modifiers != null ? modifiers.Any(SyntaxKind.AtomicKeyword) : false;
             var openBrace = this.EatToken(SyntaxKind.OpenBraceToken);
             var accessors = default(SyntaxList<AccessorDeclarationSyntax>);
 
@@ -3371,6 +3423,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         else if (this.IsPossibleAccessor())
                         {
                             var acc = this.ParseAccessorDeclaration(isEvent, ref hasGetOrAdd, ref hasSetOrRemove);
+                            if (hasAtomicModifier && acc.Body != null)
+                            {
+                                acc = this.AddError(acc, ErrorCode.ERR_AtomicAccessorWithBody);
+                            }
                             builder.Add(acc);
                         }
                         else if (this.SkipBadAccessorListTokens(ref openBrace, builder,
@@ -4158,30 +4214,42 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                     case SyntaxKind.ThisKeyword:
                         mod = CheckFeatureAvailability(mod, MessageID.IDS_FeatureExtensionMethod);
                         thisCount++;
+                        if (thisCount == 2)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.ThisKeyword));
+                        }
                         break;
                     case SyntaxKind.RefKeyword:
                         refCount++;
+                        if (refCount == 2)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.RefKeyword));
+                        }
                         break;
                     case SyntaxKind.OutKeyword:
                         outCount++;
+                        if (outCount == 2)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.OutKeyword));
+                        }
                         break;
                     case SyntaxKind.ParamsKeyword:
                         paramsCount++;
+                        if (paramsCount == 2)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.ParamsKeyword));
+                        }
                         break;
                     case SyntaxKind.AtomicKeyword:
                         atomicCount++;
+                        if (atomicCount == 2)
+                        {
+                            mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.AtomicKeyword));
+                        }
                         break;
                 }
 
-                if (refCount == 2 || outCount == 2 || thisCount == 2 || paramsCount == 2 || atomicCount == 2)
-                {
-                    mod = this.AddError(mod, ErrorCode.ERR_DupParamMod, SyntaxFacts.GetText(SyntaxKind.RefKeyword));
-                }
-                else if (refCount > 2 || outCount > 2 || thisCount > 2 || paramsCount > 2 || atomicCount > 2)
-                {
-                    mod = this.AddError(mod, ErrorCode.ERR_MultiParamMod);
-                }
-                else if (atomicCount > 0 && refCount > 0)
+                if (atomicCount > 0 && refCount > 0)
                 {
                     mod = this.AddError(mod, ErrorCode.ERR_BadRefWithAtomic);
                 }
@@ -6589,7 +6657,14 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             switch (this.CurrentToken.Kind)
             {
                 case SyntaxKind.AtomicKeyword:
-                    return this.ParseAtomicBlock();
+                    if (this.PeekToken(1).Kind == SyntaxKind.OpenBraceToken)
+                    {
+                        return this.ParseAtomicBlock();
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 case SyntaxKind.RetryKeyword:
                     return this.ParseRetryStatement();
                 case SyntaxKind.FixedKeyword:
@@ -8186,6 +8261,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                 case SyntaxKind.StaticKeyword:
                 case SyntaxKind.ReadOnlyKeyword:
                 case SyntaxKind.VolatileKeyword:
+                case SyntaxKind.AtomicKeyword:
                     return true;
                 default:
                     return false;

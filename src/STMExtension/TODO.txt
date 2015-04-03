@@ -1,4 +1,5 @@
 ﻿TODO:
-Parsing of property, parameter and localvariable
+Parsing of property and localvariable
+Generate error for atomic method declarations
 
 DONE:

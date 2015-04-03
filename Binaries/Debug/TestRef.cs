@@ -11,7 +11,15 @@ namespace TestRefNamespace
         private static atomic int test2 = 2;
         private atomic readonly int test3 = 3;
         */
-        
+
+        public atomic int TestProp { get { return true; } set; }
+
+        public static atomic void AtomicMethod()
+        {
+            atomic int x = 0;
+            atomic var y = 1;
+        }
+
         private static void AtomicParamTest(atomic int i)
         {
 
