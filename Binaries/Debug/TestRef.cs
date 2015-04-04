@@ -87,6 +87,15 @@ namespace TestRefNamespace
         {
             
             atomic{
+				if(i == 5)
+				{
+					retry;
+				}
+				
+				if(i == 9)
+				{
+					retry;
+				}
 				return 5 + 5;
                 //Console.WriteLine("Atomic works");
 				//retry;

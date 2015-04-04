@@ -25,31 +25,21 @@ namespace STMExtension
 
             var tree = trees.First();
             var root = tree.GetRoot();
-            var rootDesNodes = root.DescendantNodes().ToList();
-            var atomicNodes = rootDesNodes.Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
+            //var textBefore = root.GetText().ToString(); //Get source text before transformation (for testing and debugging)
 
-            var replaceDic = new Dictionary<CSharpSyntaxNode/*AtomicStatementSyntax*/, ExpressionStatementSyntax>(); //TODO: Maybe the second type (ExpressionStatementSyntax), have to be changed
-            //var textBefore = root.GetText().ToString(); //Get source text before transformation (for testing)
+            //replace atomics
+            var atomicNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
+            var atomicReplaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>();
 
             foreach (AtomicStatementSyntax aNode in atomicNodes)
             {
-                var desNodes = aNode.DescendantNodes().ToList(); //Can be used to check that descendant nodes does not use an illegal construct
+                //var desNodes = aNode.DescendantNodes().ToList(); //Can be used to check that descendant nodes does not use an illegal construct
                 var childNodes = aNode.ChildNodes().ToList();
                 if (childNodes.Count() > 1)
                 {
                     throw new Exception("There are more than one child nodes: Undefined behaviour.");
                 }
                 
-                //replace retry's
-                /*var retryNodes = desNodes.Where(node => node.IsKind(SyntaxKind.RetryStatement)).ToList();
-                foreach(RetryStatementSyntax rNode in retryNodes)
-                {
-                    var retryInvoNode = SyntaxFactory.ExpressionStatement(
-                        SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
-                    replaceDic.Add(rNode, retryInvoNode);
-                }*/
-
-                //replace atomics
                 BlockSyntax aBlock = (BlockSyntax)childNodes.ElementAt(0);
 
                 var lambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
@@ -62,11 +52,24 @@ namespace STMExtension
                         arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(
                             new List<ArgumentSyntax>() { arg }))));
 
-                replaceDic.Add(aNode, atomicInvoNode);
+                atomicReplaceDic.Add(aNode, atomicInvoNode);
             }
 
-            var newRoot = root.ReplaceNodes(replaceDic.Keys, (oldnode, newnode) => replaceDic[oldnode]);
-            SyntaxTree newTree = SyntaxFactory.SyntaxTree(newRoot, tree.Options, tree.FilePath);
+            root = root.ReplaceNodes(atomicReplaceDic.Keys, (oldnode, newnode) => atomicReplaceDic[oldnode]);
+
+            //replace retry's
+            var retryReplaceDic = new Dictionary<RetryStatementSyntax, ExpressionStatementSyntax>();
+            var retryNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.RetryStatement)).ToList();
+            foreach (RetryStatementSyntax rNode in retryNodes)
+            {
+                var retryInvoNode = SyntaxFactory.ExpressionStatement(
+                    SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
+                retryReplaceDic.Add(rNode, retryInvoNode);
+            }
+            root = root.ReplaceNodes(retryReplaceDic.Keys, (oldnode, newnode) => retryReplaceDic[oldnode]);
+
+            //create new syntax tree (based on new root), and update it as the current tree in the trees array
+            SyntaxTree newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
             trees[0] = newTree;
             var textAfter = newTree.GetText().ToString(); //Get source text after transformation (for testing)
         }
