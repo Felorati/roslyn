@@ -28,18 +28,18 @@ namespace STMExtension
             var rootDesNodes = root.DescendantNodes().ToList();
             var atomicNodes = rootDesNodes.Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
 
-            var replaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>(); //TODO: Replace the second generic type (ExpressionStatementSyntax), when we know it
-            //var textBefore = root.GetText().ToString(); //Get source text before transformation
+            var replaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>(); //TODO: Maybe the second type (ExpressionStatementSyntax), have to be changed
+            //var textBefore = root.GetText().ToString(); //Get source text before transformation (for testing)
 
             foreach (AtomicStatementSyntax aNode in atomicNodes)
             {
                 var desNodes = aNode.DescendantNodes().ToList(); //Can be used to check that descendant nodes does not use an illegal construct
                 var childNodes = aNode.ChildNodes().ToList();
-                if(childNodes.Count() > 1)
+                if (childNodes.Count() > 1)
                 {
                     throw new Exception("There are more than one child nodes: Undefined behaviour.");
                 }
-                BlockSyntax aBlock = (BlockSyntax) childNodes.ElementAt(0);
+                BlockSyntax aBlock = (BlockSyntax)childNodes.ElementAt(0);
 
                 var lambda = SyntaxFactory.ParenthesizedLambdaExpression(
                     aBlock
@@ -49,7 +49,7 @@ namespace STMExtension
 
                 var newNode = SyntaxFactory.ExpressionStatement(
                 SyntaxFactory.InvocationExpression(
-                    SyntaxFactory.ParseName("STM.Lam"), //TODO: Insert name fra STM library instead
+                    SyntaxFactory.ParseName("STMSystem.Atomic"), //
                     SyntaxFactory.ArgumentList(
                         arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(
                             new List<ArgumentSyntax>() { arg }))));
@@ -60,7 +60,7 @@ namespace STMExtension
             var newRoot = tree.GetRoot().ReplaceNodes(replaceDic.Keys, (oldnode, newnode) => replaceDic[oldnode]);
             SyntaxTree newTree = SyntaxFactory.SyntaxTree(newRoot, tree.Options, tree.FilePath);
             trees[0] = newTree;
-            var textAfter = newTree.GetText().ToString(); //Get source text after transformation
+            var textAfter = newTree.GetText().ToString(); //Get source text after transformation (for testing)
         }
     }
 }

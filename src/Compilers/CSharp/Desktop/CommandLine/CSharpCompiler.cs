@@ -160,11 +160,11 @@ namespace Microsoft.CodeAnalysis.CSharp
                     WithXmlReferenceResolver(xmlFileResolver).
                     WithSourceReferenceResolver(sourceFileResolver));
 
-            //Roslyn reference modification: Loading STM references
+            //Roslyn reference modification: Loading STM library reference
             var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
             var compWithRef = compilation.AddReferences(MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
-                "STMExtension.dll" //TODO: Have to add the STM library dll instead
-                //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STMExtension.dll")
+                "STM.dll" //STM library name
+                //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STM.dll")
                 )));
 
             return compWithRef;
