@@ -28,7 +28,7 @@ namespace STMExtension
             var rootDesNodes = root.DescendantNodes().ToList();
             var atomicNodes = rootDesNodes.Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
 
-            var replaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>(); //TODO: Maybe the second type (ExpressionStatementSyntax), have to be changed
+            var replaceDic = new Dictionary<CSharpSyntaxNode/*AtomicStatementSyntax*/, ExpressionStatementSyntax>(); //TODO: Maybe the second type (ExpressionStatementSyntax), have to be changed
             //var textBefore = root.GetText().ToString(); //Get source text before transformation (for testing)
 
             foreach (AtomicStatementSyntax aNode in atomicNodes)
@@ -39,25 +39,33 @@ namespace STMExtension
                 {
                     throw new Exception("There are more than one child nodes: Undefined behaviour.");
                 }
+                
+                //replace retry's
+                /*var retryNodes = desNodes.Where(node => node.IsKind(SyntaxKind.RetryStatement)).ToList();
+                foreach(RetryStatementSyntax rNode in retryNodes)
+                {
+                    var retryInvoNode = SyntaxFactory.ExpressionStatement(
+                        SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
+                    replaceDic.Add(rNode, retryInvoNode);
+                }*/
+
+                //replace atomics
                 BlockSyntax aBlock = (BlockSyntax)childNodes.ElementAt(0);
 
-                var lambda = SyntaxFactory.ParenthesizedLambdaExpression(
-                    aBlock
-                );
-
+                var lambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
                 var arg = SyntaxFactory.Argument(lambda);
 
-                var newNode = SyntaxFactory.ExpressionStatement(
+                var atomicInvoNode = SyntaxFactory.ExpressionStatement(
                 SyntaxFactory.InvocationExpression(
                     SyntaxFactory.ParseName("STMSystem.Atomic"), //
                     SyntaxFactory.ArgumentList(
                         arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(
                             new List<ArgumentSyntax>() { arg }))));
 
-                replaceDic.Add(aNode, newNode);
+                replaceDic.Add(aNode, atomicInvoNode);
             }
 
-            var newRoot = tree.GetRoot().ReplaceNodes(replaceDic.Keys, (oldnode, newnode) => replaceDic[oldnode]);
+            var newRoot = root.ReplaceNodes(replaceDic.Keys, (oldnode, newnode) => replaceDic[oldnode]);
             SyntaxTree newTree = SyntaxFactory.SyntaxTree(newRoot, tree.Options, tree.FilePath);
             trees[0] = newTree;
             var textAfter = newTree.GetText().ToString(); //Get source text after transformation (for testing)

@@ -164,8 +164,10 @@ namespace Microsoft.CodeAnalysis.CSharp
             var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
             var compWithRef = compilation.AddReferences(MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
                 "STM.dll" //STM library name
-                //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STM.dll")
-                )));
+                          //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STM.dll")
+                )),
+                MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
+                "Spring.Threading.dll"))); //TODO: Maybe reference this in another way
 
             return compWithRef;
         }
