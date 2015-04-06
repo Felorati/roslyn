@@ -34,23 +34,32 @@ namespace STMExtension
             foreach (AtomicStatementSyntax aNode in atomicNodes)
             {
                 //var desNodes = aNode.DescendantNodes().ToList(); //Can be used to check that descendant nodes does not use an illegal construct
-                var childNodes = aNode.ChildNodes().ToList();
-                if (childNodes.Count() > 1)
+                //var childNodes = aNode.ChildNodes().ToList();
+
+                //Build up arguments to library call
+                List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
+
+                //Atomic arg
+                StatementSyntax aBlock = aNode.Statement; //(BlockSyntax)childNodes.ElementAt(0);
+                var aLambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
+                var atomicArg = SyntaxFactory.Argument(aLambda);
+                aArguments.Add(atomicArg);
+
+                //OrElse args
+                var aOrElses = aNode.Orelses;
+                foreach(var oe in aOrElses)
                 {
-                    throw new Exception("There are more than one child nodes: Undefined behaviour.");
+                    var oeLambda = SyntaxFactory.ParenthesizedLambdaExpression(oe.Statement);
+                    var oeArg = SyntaxFactory.Argument(oeLambda);
+                    aArguments.Add(oeArg);
                 }
-                
-                BlockSyntax aBlock = (BlockSyntax)childNodes.ElementAt(0);
 
-                var lambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
-                var arg = SyntaxFactory.Argument(lambda);
-
+                //Create library call
                 var atomicInvoNode = SyntaxFactory.ExpressionStatement(
                 SyntaxFactory.InvocationExpression(
-                    SyntaxFactory.ParseName("STMSystem.Atomic"), //
+                    SyntaxFactory.ParseName("STMSystem.Atomic"),
                     SyntaxFactory.ArgumentList(
-                        arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(
-                            new List<ArgumentSyntax>() { arg }))));
+                        arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
 
                 atomicReplaceDic.Add(aNode, atomicInvoNode);
             }

@@ -103,14 +103,16 @@ namespace TestRefNamespace
 				//int hello;
             }
 			atomic{
+				retry;
 				return 1+2;
 			}
-            /*
 			orelse
 			{
 				Console.WriteLine("Orelse works");
 				Console.WriteLine("Orelse works");
+				return 1336 + 1;
 			}
+			/*
 			orelse
 			{
 				Console.WriteLine("Orelse 2 works");
