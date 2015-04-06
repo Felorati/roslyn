@@ -5,8 +5,8 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-		private atomic string hejj = new TMVar<string>("hejj");
-        private atomic int i = new TMInt(5);
+		private atomic string hejj = "hejj";
+        private atomic int i = 5;
 		//private atomic TestRef k = null;
 		/*
         public atomic const int test1 = 1;
@@ -87,7 +87,9 @@ namespace TestRefNamespace
         
         private static void Add(int i, int result)
         {
-            
+            atomic int x = 0, y = 1, z = 2;
+            atomic int someInt;
+            atomic TestRef tr = null;
             atomic{
 				if(i == 5)
 				{
@@ -138,6 +140,7 @@ namespace TestRefNamespace
 
             Add(10, total);
             System.Console.WriteLine("Value after calling Add(): {0}", total);
+            System.Console.WriteLine("Yey atomicvars!");
         }
     }
 }

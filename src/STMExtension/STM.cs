@@ -28,59 +28,10 @@ namespace STMExtension
                 //replace atomic field types
                 List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
                 var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                var fieldDclReplaceDic = new Dictionary<FieldDeclarationSyntax, FieldDeclarationSyntax>();
+                root = root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
 
-                foreach (FieldDeclarationSyntax aField in atomicFields)
-                {
-                    //Remove atomic from modifier list
-                    var newModifierList = aField.Modifiers.Where(mod => !mod.IsKind(SyntaxKind.AtomicKeyword)).ToList();
-                    var newFieldDcl = aField.WithModifiers(SyntaxFactory.TokenList(newModifierList));
-
-                    //Change declaration type to our TMVar type (or specific like TMInt)
-                    VariableDeclarationSyntax aFVarDcl = aField.Declaration;
-                    TypeSyntax aFType = aFVarDcl.Type; //original type node
-
-                    string aFTypeStr = "";
-                    string aFFullTypeStr = "";
-
-                    if (aFType.IsKind(SyntaxKind.IdentifierName)) //userdefined types
-                    {
-                        aFTypeStr = ((IdentifierNameSyntax)aFType).Identifier.Text;
-                        aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
-                    }
-                    else if (aFType.IsKind(SyntaxKind.PredefinedType))
-                    {
-                        aFTypeStr = ((PredefinedTypeSyntax)aFType).Keyword.Text;
-                        string aFTypeStrUp = FirstCharToUpper(aFTypeStr);
-
-                        switch (aFTypeStr)
-                        {
-                            case "int":
-                            case "long":
-                            case "double":
-                            case "float":
-                            case "uint":
-                            case "ulong":
-                                aFFullTypeStr = "TM" + aFTypeStrUp;
-                                break;
-                            case "string":
-                            default:
-                                aFFullTypeStr = "TMVar<" + aFTypeStrUp + ">";
-                                break;
-                        }
-                    }
-                    else
-                    {
-                        throw new Exception("This declaration type is unknown");
-                    }
-
-                    var newTypeDcl = SyntaxFactory.ParseName(aFFullTypeStr + " "); //whitespace needed to seperate type from name
-
-                    //Build new field declaration and add to dic
-                    newFieldDcl = newFieldDcl.WithDeclaration(SyntaxFactory.VariableDeclaration(newTypeDcl, aFVarDcl.Variables));
-                    fieldDclReplaceDic.Add(aField, newFieldDcl);
-                }
-                root = root.ReplaceNodes(fieldDclReplaceDic.Keys, (oldnode, newnode) => fieldDclReplaceDic[oldnode]);
+                //Replace local vars
+                root = ReplaceLocalVars(root);
 
                 //replace atomics and orelses
                 var atomicNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
@@ -138,9 +89,48 @@ namespace STMExtension
                 File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", appendText);
                 //File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", textAfter);
             }
-
-           
         }
+
+        private static NameSyntax DetermineSTMType(TypeSyntax aFType)
+        {
+            string aFTypeStr = "";
+            string aFFullTypeStr = "";
+
+            if (aFType.IsKind(SyntaxKind.IdentifierName)) //userdefined types
+            {
+                aFTypeStr = ((IdentifierNameSyntax)aFType).Identifier.Text;
+                aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
+            }
+            else if (aFType.IsKind(SyntaxKind.PredefinedType))
+            {
+                aFTypeStr = ((PredefinedTypeSyntax)aFType).Keyword.Text;
+                string aFTypeStrUp = FirstCharToUpper(aFTypeStr);
+
+                switch (aFTypeStr)
+                {
+                    case "int":
+                    case "long":
+                    case "double":
+                    case "float":
+                    case "uint":
+                    case "ulong":
+                        aFFullTypeStr = "TM" + aFTypeStrUp;
+                        break;
+                    case "string":
+                    default:
+                        aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
+                        break;
+                }
+            }
+            else
+            {
+                throw new Exception("This declaration type is unknown");
+            }
+
+            var newTypeDcl = SyntaxFactory.ParseName(aFFullTypeStr + " "); //whitespace needed to seperate type from name
+            return newTypeDcl;
+        }
+
         private static string FirstCharToUpper(string s)
         {
             // Check for empty string.
@@ -150,6 +140,65 @@ namespace STMExtension
             }
             // Return char and concat substring.
             return char.ToUpper(s[0]) + s.Substring(1);
+        }
+
+        private static FieldDeclarationSyntax ReplaceFieldDecl(FieldDeclarationSyntax aField)
+        {
+            //Remove atomic from modifier list
+            var newFieldDcl = aField.WithModifiers(RemoveAtomicMod(aField.Modifiers));
+            //Replace type and initializers
+            newFieldDcl = newFieldDcl.WithDeclaration(ConstructVariableDeclaration(newFieldDcl.Declaration));
+            return newFieldDcl;
+        }
+
+        private static SyntaxNode ReplaceLocalVars(SyntaxNode root)
+        {
+            //replace atomic local var dcl types
+            var allLocals = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.LocalDeclarationStatement)).Cast<LocalDeclarationStatementSyntax>().ToList();
+            var atomicLocals = allLocals.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+
+            root = root.ReplaceNodes(atomicLocals, (oldnode, newnode) => ReplaceLocalVar(oldnode));
+            return root;
+        }
+
+        private static LocalDeclarationStatementSyntax ReplaceLocalVar(LocalDeclarationStatementSyntax aLocal)
+        {
+            //Remove atomic from modifier list
+            var newLocalDecl = aLocal.WithModifiers(RemoveAtomicMod(aLocal.Modifiers));
+
+            //Change declaration type to our TMVar type (or specific like TMInt)
+            newLocalDecl = newLocalDecl.WithDeclaration(ConstructVariableDeclaration(aLocal.Declaration));
+            return newLocalDecl;
+        }
+
+        private static SyntaxTokenList RemoveAtomicMod(SyntaxTokenList list)
+        {
+            var newModifierList = list.Where(mod => !mod.IsKind(SyntaxKind.AtomicKeyword)).ToList();
+            return SyntaxFactory.TokenList(newModifierList);
+        }
+
+        private static VariableDeclarationSyntax ConstructVariableDeclaration(VariableDeclarationSyntax aVarDcl)
+        {
+            var newTypeDcl = DetermineSTMType(aVarDcl.Type);
+
+            var buffer = new List<VariableDeclaratorSyntax>();
+            foreach (var variable in aVarDcl.Variables)
+            {
+                if (variable.Initializer != null)
+                {
+                    var argListContent = SyntaxFactory.SeparatedList<ArgumentSyntax>(new List<ArgumentSyntax> { SyntaxFactory.Argument(variable.Initializer.Value) });
+                    var argList = SyntaxFactory.ArgumentList(SyntaxFactory.ParseToken("("), argListContent, SyntaxFactory.ParseToken(")"));
+                    var initExpression = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseToken("new "), newTypeDcl, argList, null);
+                    var newVarDeclarator = variable.WithInitializer(variable.Initializer.WithValue(initExpression));
+                    buffer.Add(newVarDeclarator);
+                }
+                else
+                {
+                    buffer.Add(variable);
+                }
+            }
+
+            return SyntaxFactory.VariableDeclaration(newTypeDcl, SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>(buffer));
         }
     }
 }
