@@ -5,8 +5,10 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-        /*
-        private atomic int i = 0;
+		private atomic string hejj = new TMVar<string>("hejj");
+        private atomic int i = new TMInt(5);
+		//private atomic TestRef k = null;
+		/*
         public atomic const int test1 = 1;
         private static atomic int test2 = 2;
         private atomic readonly int test3 = 3;
