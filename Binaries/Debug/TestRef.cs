@@ -5,9 +5,15 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-		private atomic string hejj = "hejj";
-        private atomic int i = 5;
-		//private atomic TestRef k = null;
+
+        private static string Expressiontest()
+        {
+            return sName + iName;
+        }
+
+		private static atomic string sName = "hejj";
+        private static atomic int iName = 5;
+    	//private atomic TestRef k = null;
 		/*
         public atomic const int test1 = 1;
         private static atomic int test2 = 2;

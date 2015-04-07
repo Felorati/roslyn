@@ -12,12 +12,61 @@ namespace STMExtension
 {
     public class STM
     {
+
+        public static void ExtendCompilation(ref CSharpCompilation compilation)
+        {
+            for (int i = 0; i < compilation.SyntaxTrees.Length ; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var semanticModel = compilation.GetSemanticModel(tree);
+                var atomicFields = tree.GetRoot().DescendantNodes().OfType<FieldDeclarationSyntax>().Where(fDecl => IsAtomicType(semanticModel, fDecl.Declaration.Type));
+                foreach (var item in atomicFields)
+                {
+                    foreach (var vardcl in item.Declaration.Variables)
+                    {
+                        ISymbol symbol = semanticModel.GetDeclaredSymbol(vardcl);
+                    }
+                    
+                }
+
+                var expressions = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>();
+                var exprCount = expressions.Count();
+                foreach (var expr in expressions)
+                {
+                    var typeinfo = semanticModel.GetTypeInfo(expr);
+                    var dataflow = semanticModel.AnalyzeDataFlow(expr);
+                }
+
+            }
+        }
+
+        private static bool IsAtomicType(SemanticModel semanticModel, TypeSyntax type)
+        {
+            bool isAtomic = false;
+            var typeInfo = semanticModel.GetTypeInfo(type);
+            if (typeInfo.Type.ContainingNamespace.ToString() == "STM.Implementation.Lockbased")
+            {
+                switch (typeInfo.Type.Name)
+                {
+                    case "TMInt":
+                    case "TMLong":
+                    case "TMDouble":
+                    case "TMFloat":
+                    case "TMUlong":
+                    case "TMUint":
+                    case "TMVar":
+                        isAtomic = true;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            return isAtomic;
+        }
+
         public static void Extend(ref SyntaxTree[] trees)
         {
-            if(trees.Count() > 1)
-            {
-                throw new Exception("There are more than one syntax tree in trees: Undefined behaviour.");
-            }
             for (int i = 0; i < trees.Length; i++)
             {
                 var tree = trees[i];
@@ -91,40 +140,26 @@ namespace STMExtension
             }
         }
 
+
         private static NameSyntax DetermineSTMType(TypeSyntax aFType)
         {
-            string aFTypeStr = "";
+            var aFTypeStr = aFType.GetTypeString();
+            var aFTypeStrUp = FirstCharToUpper(aFTypeStr);
             string aFFullTypeStr = "";
-
-            if (aFType.IsKind(SyntaxKind.IdentifierName)) //userdefined types
+            switch (aFTypeStr)
             {
-                aFTypeStr = ((IdentifierNameSyntax)aFType).Identifier.Text;
-                aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
-            }
-            else if (aFType.IsKind(SyntaxKind.PredefinedType))
-            {
-                aFTypeStr = ((PredefinedTypeSyntax)aFType).Keyword.Text;
-                string aFTypeStrUp = FirstCharToUpper(aFTypeStr);
-
-                switch (aFTypeStr)
-                {
-                    case "int":
-                    case "long":
-                    case "double":
-                    case "float":
-                    case "uint":
-                    case "ulong":
-                        aFFullTypeStr = "TM" + aFTypeStrUp;
-                        break;
-                    case "string":
-                    default:
-                        aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
-                        break;
-                }
-            }
-            else
-            {
-                throw new Exception("This declaration type is unknown");
+                case "int":
+                case "long":
+                case "double":
+                case "float":
+                case "uint":
+                case "ulong":
+                    aFFullTypeStr = "TM" + FirstCharToUpper(aFTypeStr);
+                    break;
+                case "string":
+                default:
+                    aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
+                    break;
             }
 
             var newTypeDcl = SyntaxFactory.ParseName(aFFullTypeStr + " "); //whitespace needed to seperate type from name
@@ -186,7 +221,7 @@ namespace STMExtension
             {
                 if (variable.Initializer != null)
                 {
-                    var argListContent = SyntaxFactory.SeparatedList<ArgumentSyntax>(new List<ArgumentSyntax> { SyntaxFactory.Argument(variable.Initializer.Value) });
+                    var argListContent = SyntaxFactory.SeparatedList(new List<ArgumentSyntax> { SyntaxFactory.Argument(variable.Initializer.Value) });
                     var argList = SyntaxFactory.ArgumentList(SyntaxFactory.ParseToken("("), argListContent, SyntaxFactory.ParseToken(")"));
                     var initExpression = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseToken("new "), newTypeDcl, argList, null);
                     var newVarDeclarator = variable.WithInitializer(variable.Initializer.WithValue(initExpression));
