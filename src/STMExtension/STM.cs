@@ -61,18 +61,26 @@ namespace STMExtension
                         break;
                 }
             }
-
+            
             return isAtomic;
         }
 
         public static void Extend(ref SyntaxTree[] trees)
         {
+			//Cleaning debug and testing file upon each compilation
+            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", "");
+
             for (int i = 0; i < trees.Length; i++)
             {
                 var tree = trees[i];
                 var root = tree.GetRoot();
 
                 //var textBefore = root.GetText().ToString(); //Get source text before transformation (for testing and debugging) TestRef.cs
+
+                //replace atomic parameter types
+                List<ParameterSyntax> allParams = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.Parameter)).Cast<ParameterSyntax>().ToList();
+                var atomicParams = allParams.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+                root = root.ReplaceNodes(atomicParams, (oldnode, newnode) => ReplaceParams(oldnode));
 
                 //replace atomic field types
                 List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
@@ -175,6 +183,16 @@ namespace STMExtension
             }
             // Return char and concat substring.
             return char.ToUpper(s[0]) + s.Substring(1);
+        }
+
+        private static ParameterSyntax ReplaceParams(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
+        {
+            //Remove atomic from modifier
+            var newParam = aParam.WithModifiers(RemoveAtomicMod(aParam.Modifiers));
+            //Replace type and initializers
+            var newTypeDcl = DetermineSTMType(newParam.Type);
+            newParam = newParam.WithType(newTypeDcl);
+            return newParam;
         }
 
         private static FieldDeclarationSyntax ReplaceFieldDecl(FieldDeclarationSyntax aField)

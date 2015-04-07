@@ -32,6 +32,11 @@ namespace TestRefNamespace
         {
 
         }
+		
+		private static void AtomicParamTest2(atomic string i2)
+        {
+
+        }
 
         /*
         private static void RefRefTest(ref ref int x)
