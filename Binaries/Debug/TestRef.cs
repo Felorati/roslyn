@@ -8,6 +8,9 @@ namespace TestRefNamespace
 
         private static string Expressiontest()
         {
+            ++iName;
+            iName++;
+            sName = "test";
             return sName + iName;
         }
 
@@ -139,6 +142,7 @@ namespace TestRefNamespace
                 Console.WriteLine("If3 works");
 				Console.WriteLine("If4 works");
                 Console.WriteLine("If5 works");
+                Console.WriteLine(Expressiontest());
             }
             result += 1;
             return;

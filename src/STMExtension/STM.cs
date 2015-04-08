@@ -15,36 +15,68 @@ namespace STMExtension
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+
             for (int i = 0; i < compilation.SyntaxTrees.Length ; i++)
             {
                 var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
-                var atomicFields = tree.GetRoot().DescendantNodes().OfType<FieldDeclarationSyntax>().Where(fDecl => IsAtomicType(semanticModel, fDecl.Declaration.Type));
-                foreach (var item in atomicFields)
-                {
-                    foreach (var vardcl in item.Declaration.Variables)
-                    {
-                        ISymbol symbol = semanticModel.GetDeclaredSymbol(vardcl);
-                    }
-                    
-                }
 
-                var expressions = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>();
-                var exprCount = expressions.Count();
-                foreach (var expr in expressions)
-                {
-                    var typeinfo = semanticModel.GetTypeInfo(expr);
-                    var dataflow = semanticModel.AnalyzeDataFlow(expr);
-                }
+                var tmVarIdentifiers = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>()
+                    .Where(iden => ReplaceCondition(iden)  && IsAtomicType(semanticModel.GetTypeInfo(iden)));
+                var list = tmVarIdentifiers.ToList();
 
+
+                root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
+
+                var newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = newTree;
+                PrintDebugSource(newTree);
             }
+
+            compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
-        private static bool IsAtomicType(SemanticModel semanticModel, TypeSyntax type)
+        private static bool ReplaceCondition(IdentifierNameSyntax iden)
+        {
+            if (iden.Parent is VariableDeclarationSyntax || iden.Parent is ParameterSyntax)
+            {
+                return false;
+            }
+
+            if (iden.Parent is PrefixUnaryExpressionSyntax)
+            {
+                var parent = iden.Parent as PrefixUnaryExpressionSyntax;
+                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+                {
+                    return false;
+                }
+            }
+
+            if (iden.Parent is PostfixUnaryExpressionSyntax)
+            {
+                var parent = iden.Parent as PostfixUnaryExpressionSyntax;
+                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+                {
+                    return false;
+                }
+            }
+
+            return true; 
+        }
+
+        private static MemberAccessExpressionSyntax ReplaceIdentifier(IdentifierNameSyntax iden)
+        {
+
+            var valueIden = SyntaxFactory.IdentifierName("Value");
+            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, iden, SyntaxFactory.Token(SyntaxKind.DotToken), valueIden);
+        }
+
+        private static bool IsAtomicType(TypeInfo typeInfo)
         {
             bool isAtomic = false;
-            var typeInfo = semanticModel.GetTypeInfo(type);
-            if (typeInfo.Type.ContainingNamespace.ToString() == "STM.Implementation.Lockbased")
+            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace.ToString() == "STM.Implementation.Lockbased")
             {
                 switch (typeInfo.Type.Name)
                 {
@@ -74,8 +106,6 @@ namespace STMExtension
             {
                 var tree = trees[i];
                 var root = tree.GetRoot();
-
-                //var textBefore = root.GetText().ToString(); //Get source text before transformation (for testing and debugging) TestRef.cs
 
                 //replace atomic parameter types
                 List<ParameterSyntax> allParams = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.Parameter)).Cast<ParameterSyntax>().ToList();
@@ -141,11 +171,15 @@ namespace STMExtension
                 SyntaxTree newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
                 trees[i] = newTree;
                 //Get source text after transformation (for testing and debug purposes)
-                var textAfter = newTree.GetText().ToString();
-                var appendText = "File: " + tree.FilePath + "\n" + textAfter + "\n\n";
-                File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", appendText);
-                //File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", textAfter);
+                PrintDebugSource(newTree);
             }
+        }
+
+        private static void PrintDebugSource(SyntaxTree tree)
+        {
+            var textAfter = tree.GetText().ToString();
+            var appendText = "File: " + tree.FilePath + "\n" + textAfter + "\n\n";
+            File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", appendText);
         }
 
 
