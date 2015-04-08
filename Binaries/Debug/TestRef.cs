@@ -16,6 +16,9 @@ namespace TestRefNamespace
 
 		private static atomic string sName = "hejj";
         private static atomic int iName = 5;
+
+        public atomic string TestProp {get; set;}
+
     	//private atomic TestRef k = null;
 		/*
         public atomic const int test1 = 1;
@@ -143,6 +146,7 @@ namespace TestRefNamespace
 				Console.WriteLine("If4 works");
                 Console.WriteLine("If5 works");
                 Console.WriteLine(Expressiontest());
+                Console.WriteLine("If6 works");
             }
             result += 1;
             return;
