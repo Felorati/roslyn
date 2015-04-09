@@ -34,7 +34,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 SyntaxToken refKeyword;
                 SyntaxToken paramsKeyword;
                 SyntaxToken thisKeyword;
-                var refKind = GetModifiers(parameterSyntax.Modifiers, out outKeyword, out refKeyword, out paramsKeyword, out thisKeyword);
+                SyntaxToken atomicKeyword;
+                var refKind = GetModifiers(parameterSyntax.Modifiers, out outKeyword, out refKeyword, out paramsKeyword, out thisKeyword, out atomicKeyword);
 
                 if (parameterSyntax.IsArgList)
                 {
@@ -199,7 +200,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             SyntaxToken refKeyword;
             SyntaxToken paramsKeyword;
             SyntaxToken thisKeyword;
-            GetModifiers(parameterSyntax.Modifiers, out outKeyword, out refKeyword, out paramsKeyword, out thisKeyword);
+            SyntaxToken atomicKeyword;
+            GetModifiers(parameterSyntax.Modifiers, out outKeyword, out refKeyword, out paramsKeyword, out thisKeyword, out atomicKeyword);
 
             // CONSIDER: We are inconsistent here regarding where the error is reported; is it
             // CONSIDER: reported on the parameter name, or on the value of the initializer?
@@ -335,7 +337,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             return null;
         }
 
-        private static RefKind GetModifiers(SyntaxTokenList modifiers, out SyntaxToken outKeyword, out SyntaxToken refKeyword, out SyntaxToken paramsKeyword, out SyntaxToken thisKeyword)
+        private static RefKind GetModifiers(SyntaxTokenList modifiers, out SyntaxToken outKeyword, out SyntaxToken refKeyword, out SyntaxToken paramsKeyword, out SyntaxToken thisKeyword, out SyntaxToken atomicKeyword)
         {
             var refKind = RefKind.None;
 
@@ -343,6 +345,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             refKeyword = default(SyntaxToken);
             paramsKeyword = default(SyntaxToken);
             thisKeyword = default(SyntaxToken);
+            atomicKeyword = default(SyntaxToken);
 
             foreach (var modifier in modifiers)
             {
@@ -367,6 +370,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                         break;
                     case SyntaxKind.ThisKeyword:
                         thisKeyword = modifier;
+                        break;
+                    case SyntaxKind.AtomicKeyword:
+                        atomicKeyword = modifier;
                         break;
                 }
             }

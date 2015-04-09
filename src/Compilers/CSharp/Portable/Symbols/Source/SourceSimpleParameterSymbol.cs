@@ -23,8 +23,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             int ordinal,
             RefKind refKind,
             string name,
-            ImmutableArray<Location> locations)
-            : base(owner, parameterType, ordinal, refKind, name, locations)
+            ImmutableArray<Location> locations, bool isAtomic)
+            : base(owner, parameterType, ordinal, refKind, name, locations, isAtomic)
         {
         }
 

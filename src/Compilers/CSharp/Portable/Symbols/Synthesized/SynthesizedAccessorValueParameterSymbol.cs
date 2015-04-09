@@ -21,7 +21,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                    syntaxRef: null,
                    defaultSyntaxValue: ConstantValue.Unset, // the default value can be set via [param: DefaultParameterValue] applied on the accessor
                    isParams: false,
-                   isExtensionMethodThis: false)
+                   isExtensionMethodThis: false,
+                   isAtomic: false)
         {
         }
 

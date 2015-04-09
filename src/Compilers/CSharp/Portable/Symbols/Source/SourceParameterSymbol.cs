@@ -26,6 +26,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private readonly ImmutableArray<Location> _locations;
         private readonly RefKind _refKind;
 
+        public bool IsAtomic { get; protected set; }
+
         public static SourceParameterSymbol Create(
             Binder context,
             Symbol owner,
@@ -49,6 +51,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                     diagnostics,
                     identifier.Parent.GetLocation());
             }
+            bool isAtomic = syntax.Modifiers.Any(SyntaxKind.AtomicKeyword);
 
             if (!isParams &&
                 !isExtensionMethodThis &&
@@ -56,7 +59,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 (syntax.AttributeLists.Count == 0) &&
                 !owner.IsPartialMethod())
             {
-                return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, name, locations);
+                return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, name, locations, isAtomic);
             }
 
             return new SourceComplexParameterSymbol(
@@ -71,7 +74,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 syntax.GetReference(),
                 ConstantValue.Unset,
                 isParams,
-                isExtensionMethodThis);
+                isExtensionMethodThis,
+                isAtomic);
         }
 
         protected SourceParameterSymbol(
@@ -80,7 +84,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             int ordinal,
             RefKind refKind,
             string name,
-            ImmutableArray<Location> locations)
+            ImmutableArray<Location> locations, bool isAtomic)
             : base(owner, ordinal)
         {
             Debug.Assert((owner.Kind == SymbolKind.Method) || (owner.Kind == SymbolKind.Property));
@@ -88,6 +92,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             _refKind = refKind;
             _name = name;
             _locations = locations;
+            this.IsAtomic = isAtomic;
         }
 
         internal override ParameterSymbol WithCustomModifiersAndParams(TypeSymbol newType, ImmutableArray<CustomModifier> newCustomModifiers, bool hasByRefBeforeCustomModifiers, bool newIsParams)
@@ -111,7 +116,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 this.SyntaxReference,
                 this.ExplicitDefaultConstantValue,
                 newIsParams,
-                this.IsExtensionMethodThis);
+                this.IsExtensionMethodThis,
+                this.IsAtomic);
         }
 
         internal sealed override bool RequiresCompletion

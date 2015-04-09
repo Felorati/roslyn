@@ -46,8 +46,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             SyntaxReference syntaxRef,
             ConstantValue defaultSyntaxValue,
             bool isParams,
-            bool isExtensionMethodThis)
-            : base(owner, parameterType, ordinal, refKind, name, locations)
+            bool isExtensionMethodThis,
+            bool isAtomic)
+            : base(owner, parameterType, ordinal, refKind, name, locations, isAtomic)
         {
             Debug.Assert((syntaxRef == null) || (syntaxRef.GetSyntax().IsKind(SyntaxKind.Parameter)));
 

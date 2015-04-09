@@ -15,15 +15,34 @@ namespace STMExtension
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
-
-            compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceArguments(compilation);
+            compilation = ReplaceAtomicVariableUsage(compilation);
+            compilation = ReplaceParameters(compilation);
 
             foreach (var tree in compilation.SyntaxTrees)
             {
                 PrintDebugSource(tree);
             }
 
+        }
+
+        private static CSharpCompilation ReplaceParameters(CSharpCompilation compilation)
+        {
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                //replace atomic parameter types
+                List<ParameterSyntax> allParams = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.Parameter)).Cast<ParameterSyntax>().ToList();
+                var atomicParams = allParams.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+                root = root.ReplaceNodes(atomicParams, (oldnode, newnode) => ReplaceParam(oldnode));
+
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+            }
+
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
         private static CSharpCompilation ReplaceArguments(CSharpCompilation compilation)
@@ -78,14 +97,8 @@ namespace STMExtension
         private static InvocationExpressionSyntax ReplaceArgument(SemanticModel semanticModel, InvocationExpressionSyntax ive)
         {
             var info = semanticModel.GetSymbolInfo(ive);
-            var info2 = semanticModel.GetSymbolInfo(ive.Expression);
-            var alias = semanticModel.GetAliasInfo(ive);
-            var alias2 = semanticModel.GetAliasInfo(ive.Expression);
-            var type = semanticModel.GetTypeInfo(ive);
-            var type2 = semanticModel.GetTypeInfo(ive.Expression);
-            var decl = semanticModel.GetDeclaredSymbol(ive);
-            var decl2 = semanticModel.GetDeclaredSymbol(ive.Expression);
-            var spec = semanticModel.GetSpeculativeSymbolInfo(ive.FullSpan.Start, ive, SpeculativeBindingOption.BindAsExpression);
+            IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
+            var parameters = methodInfo.Parameters;
             return ive;
         }
 
@@ -158,11 +171,6 @@ namespace STMExtension
                 var root = tree.GetRoot();
 
                 root = ReplaceProperties(root);
-
-                //replace atomic parameter types
-                List<ParameterSyntax> allParams = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.Parameter)).Cast<ParameterSyntax>().ToList();
-                var atomicParams = allParams.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicParams, (oldnode, newnode) => ReplaceParams(oldnode));
 
                 //replace atomic field types
                 List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
@@ -349,7 +357,7 @@ namespace STMExtension
             return char.ToUpper(s[0]) + s.Substring(1);
         }
 
-        private static ParameterSyntax ReplaceParams(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
+        private static ParameterSyntax ReplaceParam(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
         {
             //Remove atomic from modifier
             var newParam = aParam.WithModifiers(RemoveAtomicMod(aParam.Modifiers));

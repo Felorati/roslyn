@@ -6,18 +6,27 @@ namespace TestRefNamespace
     class TestRef
     {
 
-        private static string TestMethod()
+        private static string AtomicTest(atomic int i)
         {
-            return Expressiontest(s);
+            return "teststring: " + i;
         }
 
+        private static string TestMethod()
+        {
+            var s = "hej";
+            //Expressiontest(s);
+            int i = 12;
+            return AtomicTest(i);
+        }
+        /*
         private static string Expressiontest(string s)
         {
             ++iName;
             iName++;
             sName = "test";
             return sName + iName;
-        }
+        }*/
+
 
 		private static atomic string sName = "hejj";
         private static atomic int iName = 5;
@@ -150,13 +159,12 @@ namespace TestRefNamespace
                 Console.WriteLine("If3 works");
 				Console.WriteLine("If4 works");
                 Console.WriteLine("If5 works");
-                Console.WriteLine(Expressiontest("hje"));
                 Console.WriteLine("If6 works");
             }
             result += 1;
             return;
         }
-		
+		/*
 		private static void NestAtomic()
 		{
 			atomic{
@@ -167,8 +175,8 @@ namespace TestRefNamespace
 			
 			}
 		
-		}
-
+		}*/
+        
         static void Main()
         {
             int total = 20;
