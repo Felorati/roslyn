@@ -6,7 +6,12 @@ namespace TestRefNamespace
     class TestRef
     {
 
-        private static string Expressiontest()
+        private static string TestMethod()
+        {
+            return Expressiontest(s);
+        }
+
+        private static string Expressiontest(string s)
         {
             ++iName;
             iName++;
@@ -145,7 +150,7 @@ namespace TestRefNamespace
                 Console.WriteLine("If3 works");
 				Console.WriteLine("If4 works");
                 Console.WriteLine("If5 works");
-                Console.WriteLine(Expressiontest());
+                Console.WriteLine(Expressiontest("hje"));
                 Console.WriteLine("If6 works");
             }
             result += 1;

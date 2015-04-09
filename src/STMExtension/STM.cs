@@ -15,27 +15,78 @@ namespace STMExtension
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
+
+            compilation = ReplaceAtomicVariableUsage(compilation);
+            compilation = ReplaceArguments(compilation);
+
+            foreach (var tree in compilation.SyntaxTrees)
+            {
+                PrintDebugSource(tree);
+            }
+
+        }
+
+        private static CSharpCompilation ReplaceArguments(CSharpCompilation compilation)
+        {
             var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
 
-            for (int i = 0; i < compilation.SyntaxTrees.Length ; i++)
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
             {
                 var tree = compilation.SyntaxTrees[i];
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
 
-                var tmVarIdentifiers = tree.GetRoot().DescendantNodes().OfType<IdentifierNameSyntax>()
-                    .Where(iden => ReplaceCondition(iden)  && IsAtomicType(semanticModel.GetTypeInfo(iden)));
-                var list = tmVarIdentifiers.ToList();
+                var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().ToList();
 
+                foreach (var method in methods)
+                {
+                    var type = semanticModel.GetTypeInfo(method);
+                    var decl = semanticModel.GetDeclaredSymbol(method);
+                }
 
-                root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
+                var methodCalls = root.DescendantNodes().OfType<InvocationExpressionSyntax>();
+                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceArgument(semanticModel, oldnode));
 
-                var newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = newTree;
-                PrintDebugSource(newTree);
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
             }
 
-            compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+        }
+
+        private static CSharpCompilation ReplaceAtomicVariableUsage(CSharpCompilation compilation)
+        {
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                var semanticModel = compilation.GetSemanticModel(tree);
+
+                var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
+                    .Where(iden => ReplaceCondition(iden) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
+                root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
+
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+            }
+
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+        }
+
+        private static InvocationExpressionSyntax ReplaceArgument(SemanticModel semanticModel, InvocationExpressionSyntax ive)
+        {
+            var info = semanticModel.GetSymbolInfo(ive);
+            var info2 = semanticModel.GetSymbolInfo(ive.Expression);
+            var alias = semanticModel.GetAliasInfo(ive);
+            var alias2 = semanticModel.GetAliasInfo(ive.Expression);
+            var type = semanticModel.GetTypeInfo(ive);
+            var type2 = semanticModel.GetTypeInfo(ive.Expression);
+            var decl = semanticModel.GetDeclaredSymbol(ive);
+            var decl2 = semanticModel.GetDeclaredSymbol(ive.Expression);
+            var spec = semanticModel.GetSpeculativeSymbolInfo(ive.FullSpan.Start, ive, SpeculativeBindingOption.BindAsExpression);
+            return ive;
         }
 
         private static bool ReplaceCondition(IdentifierNameSyntax iden)
