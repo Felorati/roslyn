@@ -143,6 +143,18 @@ namespace TestRefNamespace
             result += 1;
             return;
         }
+		
+		private static void NestAtomic()
+		{
+			atomic{
+				return 13;
+				atomic{
+					return 37;
+				}
+			
+			}
+		
+		}
 
         static void Main()
         {
