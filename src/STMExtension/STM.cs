@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,7 +17,7 @@ namespace STMExtension
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
             compilation = ReplaceArguments(compilation);
-            //compilation = ReplaceAtomicVariableUsage(compilation);
+            compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceParameters(compilation);
 
             foreach (var tree in compilation.SyntaxTrees)
@@ -84,6 +84,19 @@ namespace STMExtension
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
 
+                var list = root.DescendantNodes().OfType<IdentifierNameSyntax>();
+
+                foreach (var item in list)
+                {
+                    var symbol = semanticModel.GetSymbolInfo(item);
+                    var condition = ReplaceCondition(item);
+                    var isAtomic = IsAtomicType(semanticModel.GetTypeInfo(item));
+                    if (isAtomic && condition)
+                    {
+                        var replacemet = ReplaceIdentifier(item);
+                    }
+                }
+
                 var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
                     .Where(iden => ReplaceCondition(iden) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
                 root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
@@ -134,10 +147,15 @@ namespace STMExtension
                 return false;
             }
 
+            if (iden.Parent is QualifiedNameSyntax && iden.Parent.Parent != null && (iden.Parent.Parent is VariableDeclarationSyntax || iden.Parent.Parent is ParameterSyntax))
+            {
+                return false;
+            }
+
             if (iden.Parent is PrefixUnaryExpressionSyntax)
             {
                 var parent = iden.Parent as PrefixUnaryExpressionSyntax;
-                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken) || parent.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
                 {
                     return false;
                 }
@@ -146,7 +164,7 @@ namespace STMExtension
             if (iden.Parent is PostfixUnaryExpressionSyntax)
             {
                 var parent = iden.Parent as PostfixUnaryExpressionSyntax;
-                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken))
+                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken) || parent.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
                 {
                     return false;
                 }

@@ -191,6 +191,7 @@ namespace TestRefNamespace
             System.Console.WriteLine("Value after calling Add(): {0}", total);
             System.Console.WriteLine("Yey atomicvars!");
 			NestAtomic();
+            System.Console.WriteLine("test");
         }
     }
 }
