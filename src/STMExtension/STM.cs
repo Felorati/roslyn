@@ -12,11 +12,12 @@ namespace STMExtension
 {
     public class STM
     {
+        private static readonly string STMNameSpace = "STM.Implementation.Lockbased";
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
             compilation = ReplaceArguments(compilation);
-            compilation = ReplaceAtomicVariableUsage(compilation);
+            //compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceParameters(compilation);
 
             foreach (var tree in compilation.SyntaxTrees)
@@ -139,7 +140,7 @@ namespace STMExtension
         private static bool IsAtomicType(TypeInfo typeInfo)
         {
             bool isAtomic = false;
-            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace.ToString() == "STM.Implementation.Lockbased")
+            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace.ToString() == STMNameSpace)
             {
                 switch (typeInfo.Type.Name)
                 {
@@ -291,7 +292,7 @@ namespace STMExtension
                     break;
             }
 
-            var newTypeDcl = SyntaxFactory.ParseName(aFFullTypeStr + " "); //whitespace needed to seperate type from name
+            var newTypeDcl = SyntaxFactory.ParseName(PreprendNameSpace(aFFullTypeStr) + " "); //whitespace needed to seperate type from name
             return newTypeDcl;
         }
 
@@ -333,7 +334,7 @@ namespace STMExtension
             foreach (RetryStatementSyntax rNode in retryNodes)
             {
                 var retryInvoNode = SyntaxFactory.ExpressionStatement(
-                    SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
+                    SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Retry"))));
                 retryReplaceDic.Add(rNode, retryInvoNode);
             }
             return root.ReplaceNodes(retryReplaceDic.Keys, (oldnode, newnode) => retryReplaceDic[oldnode]);
@@ -382,7 +383,7 @@ namespace STMExtension
             //Create library call
             var atomicInvoNode = SyntaxFactory.ExpressionStatement(
             SyntaxFactory.InvocationExpression(
-                SyntaxFactory.ParseName("STMSystem.Atomic"),
+                SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Atomic")),
                 SyntaxFactory.ArgumentList(
                     arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
 
@@ -447,6 +448,11 @@ namespace STMExtension
             }
 
             return SyntaxFactory.VariableDeclaration(newTypeDcl, SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>(buffer));
+        }
+
+        private static string PreprendNameSpace(string str)
+        {
+            return STMNameSpace + "." + str;
         }
     }
 }

@@ -1,5 +1,5 @@
 using System;
-using STM.Implementation.Lockbased;
+//using STM.Implementation.Lockbased;
 
 namespace TestRefNamespace
 {
