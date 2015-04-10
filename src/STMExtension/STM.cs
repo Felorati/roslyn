@@ -16,7 +16,8 @@ namespace STMExtension
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
-            compilation = ReplaceArguments(compilation);
+            compilation = ReplaceMethodArguments(compilation);
+            compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceParameters(compilation);
 
@@ -25,6 +26,67 @@ namespace STMExtension
                 PrintDebugSource(tree);
             }
 
+        }
+
+        private static CSharpCompilation ReplaceConstructorArguments( CSharpCompilation compilation)
+        {
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                var semanticModel = compilation.GetSemanticModel(tree);
+
+
+                var methodCalls = root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>();
+                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceConstructorArgument(semanticModel, oldnode));
+
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+            }
+
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+        }
+
+
+        private static ObjectCreationExpressionSyntax ReplaceConstructorArgument(SemanticModel semanticModel, ObjectCreationExpressionSyntax oce)
+        {
+            var info = semanticModel.GetSymbolInfo(oce);
+            if (info.Symbol != null)
+            {
+                IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
+                List<ArgumentSyntax> args;
+                bool hasAtomicParam;
+                CreateReplacementArgList(oce.ArgumentList, methodInfo, out args, out hasAtomicParam);
+
+                if (hasAtomicParam)
+                {
+                    oce = oce.WithArgumentList(CreateArgList(args));
+                }
+            }
+
+            return oce;
+        }
+
+        private static void CreateReplacementArgList(ArgumentListSyntax arglist, IMethodSymbol methodInfo, out List<ArgumentSyntax> args, out bool hasAtomicParam)
+        {
+            args = new List<ArgumentSyntax>();
+            hasAtomicParam = false;
+            for (int i = 0; i < methodInfo.Parameters.Count(); i++)
+            {
+                var parameter = methodInfo.Parameters[i];
+                var arg = arglist.Arguments[i];
+                if (parameter.IsAtomic)
+                {
+                    hasAtomicParam = true;
+                    var typeString = parameter.Type.ToString();
+                    var type = DetermineSTMType(typeString);
+                    arg = SyntaxFactory.Argument(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
+                }
+
+                args.Add(arg);
+            }
         }
 
         private static CSharpCompilation ReplaceParameters(CSharpCompilation compilation)
@@ -46,7 +108,7 @@ namespace STMExtension
             return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
-        private static CSharpCompilation ReplaceArguments(CSharpCompilation compilation)
+        private static CSharpCompilation ReplaceMethodArguments(CSharpCompilation compilation)
         {
             var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
 
@@ -56,16 +118,8 @@ namespace STMExtension
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
 
-                var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().ToList();
-
-                foreach (var method in methods)
-                {
-                    var type = semanticModel.GetTypeInfo(method);
-                    var decl = semanticModel.GetDeclaredSymbol(method);
-                }
-
                 var methodCalls = root.DescendantNodes().OfType<InvocationExpressionSyntax>();
-                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceArgument(semanticModel, oldnode));
+                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceMethodArgument(semanticModel, oldnode));
 
                 tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
                 newTrees[i] = tree;
@@ -108,28 +162,15 @@ namespace STMExtension
             return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
-        private static InvocationExpressionSyntax ReplaceArgument(SemanticModel semanticModel, InvocationExpressionSyntax ive)
+        private static InvocationExpressionSyntax ReplaceMethodArgument(SemanticModel semanticModel, InvocationExpressionSyntax ive)
         {
             var info = semanticModel.GetSymbolInfo(ive);
             if (info.Symbol != null)
             {
                 IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
-                List<ArgumentSyntax> args = new List<ArgumentSyntax>();
-                bool hasAtomicParam = false;
-                for (int i = 0; i < methodInfo.Parameters.Count(); i++)
-                {
-                    var parameter = methodInfo.Parameters[i];
-                    var arg = ive.ArgumentList.Arguments[i];
-                    if (parameter.IsAtomic)
-                    {
-                        hasAtomicParam = true;
-                        var typeString = parameter.Type.ToString();
-                        var type = DetermineSTMType(typeString);
-                        arg = SyntaxFactory.Argument(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
-                    }
-
-                    args.Add(arg);
-                }
+                List<ArgumentSyntax> args;
+                bool hasAtomicParam;
+                CreateReplacementArgList(ive.ArgumentList, methodInfo, out args, out hasAtomicParam);
 
                 if (hasAtomicParam)
                 {
@@ -176,7 +217,8 @@ namespace STMExtension
         private static MemberAccessExpressionSyntax ReplaceIdentifier(IdentifierNameSyntax iden)
         {
             var valueIden = SyntaxFactory.IdentifierName("Value");
-            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, iden, SyntaxFactory.Token(SyntaxKind.DotToken), valueIden);
+            var newNode = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, iden, SyntaxFactory.Token(SyntaxKind.DotToken), valueIden);
+            return newNode;
         }
 
         private static bool IsAtomicType(TypeInfo typeInfo)
@@ -473,7 +515,7 @@ namespace STMExtension
         private static VariableDeclarationSyntax ConstructVariableDeclaration(VariableDeclarationSyntax aVarDcl)
         {
             var newTypeDcl = DetermineSTMType(aVarDcl.Type);
-
+            
             var buffer = new List<VariableDeclaratorSyntax>();
             foreach (var variable in aVarDcl.Variables)
             {

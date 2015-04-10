@@ -5,6 +5,27 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+        static void Main()
+        {
+            var test = new TestRef(12);
+            //Console.WriteLine(test.x);
+            int total = 20;
+            System.Console.WriteLine("Original value of 'total': {0}", total);
+
+            Add(10, total);
+            System.Console.WriteLine("Value after calling Add(): {0}", total);
+            System.Console.WriteLine("Yey atomicvars!");
+            NestAtomic();
+            System.Console.WriteLine("test");
+            
+        }
+
+        private atomic int x;
+
+        public TestRef(atomic int i)
+        {
+            x = i;
+        }
 
         private static string AtomicTest(atomic int i)
         {
@@ -182,16 +203,5 @@ namespace TestRefNamespace
 		
 		}
         
-        static void Main()
-        {
-            int total = 20;
-            System.Console.WriteLine("Original value of 'total': {0}", total);
-
-            Add(10, total);
-            System.Console.WriteLine("Value after calling Add(): {0}", total);
-            System.Console.WriteLine("Yey atomicvars!");
-			NestAtomic();
-            System.Console.WriteLine("test");
-        }
     }
 }
