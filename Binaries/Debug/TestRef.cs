@@ -165,18 +165,22 @@ namespace TestRefNamespace
             result += 1;
             return;
         }
-		/*
+		
 		private static void NestAtomic()
 		{
 			atomic{
-				return 13;
+				int i = 5;
 				atomic{
-					return 37;
+					i = 1337;
+					atomic{
+						System.Console.WriteLine("Triple nesting...Wow");
+						return i;
+					}
 				}
 			
 			}
 		
-		}*/
+		}
         
         static void Main()
         {
@@ -186,6 +190,7 @@ namespace TestRefNamespace
             Add(10, total);
             System.Console.WriteLine("Value after calling Add(): {0}", total);
             System.Console.WriteLine("Yey atomicvars!");
+			NestAtomic();
         }
     }
 }
