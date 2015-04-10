@@ -16,6 +16,9 @@ namespace Microsoft.CodeAnalysis
         /// </summary>
         RefKind RefKind { get; }
 
+
+        bool IsAtomic { get; }
+
         /// <summary>
         /// Returns true if the parameter was declared as a parameter array. 
         /// </summary>

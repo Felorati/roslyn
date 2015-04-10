@@ -44,6 +44,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             }
         }
 
+        public virtual bool IsAtomic { get; protected set; }
+
         /// <summary>
         /// Gets the type of the parameter.
         /// </summary>

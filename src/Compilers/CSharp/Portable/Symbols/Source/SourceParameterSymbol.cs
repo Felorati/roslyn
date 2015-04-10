@@ -26,8 +26,6 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private readonly ImmutableArray<Location> _locations;
         private readonly RefKind _refKind;
 
-        public bool IsAtomic { get; protected set; }
-
         public static SourceParameterSymbol Create(
             Binder context,
             Symbol owner,

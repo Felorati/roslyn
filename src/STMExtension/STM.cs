@@ -97,8 +97,32 @@ namespace STMExtension
         private static InvocationExpressionSyntax ReplaceArgument(SemanticModel semanticModel, InvocationExpressionSyntax ive)
         {
             var info = semanticModel.GetSymbolInfo(ive);
-            IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
-            var parameters = methodInfo.Parameters;
+            if (info.Symbol != null)
+            {
+                IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
+                List<ArgumentSyntax> args = new List<ArgumentSyntax>();
+                bool hasAtomicParam = false;
+                for (int i = 0; i < methodInfo.Parameters.Count(); i++)
+                {
+                    var parameter = methodInfo.Parameters[i];
+                    var arg = ive.ArgumentList.Arguments[i];
+                    if (parameter.IsAtomic)
+                    {
+                        hasAtomicParam = true;
+                        var typeString = parameter.Type.ToString();
+                        var type = DetermineSTMType(typeString);
+                        arg = SyntaxFactory.Argument(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
+                    }
+
+                    args.Add(arg);
+                }
+
+                if (hasAtomicParam)
+                {
+                    ive = ive.WithArgumentList(CreateArgList(args));
+                }
+            }
+
             return ive;
         }
 
@@ -270,12 +294,10 @@ namespace STMExtension
             return nameAsString.ToString();
         }
 
-        private static NameSyntax DetermineSTMType(TypeSyntax aFType)
+        private static NameSyntax DetermineSTMType(string typeString)
         {
-            var aFTypeStr = aFType.GetTypeString();
-            var aFTypeStrUp = FirstCharToUpper(aFTypeStr);
             string aFFullTypeStr = "";
-            switch (aFTypeStr)
+            switch (typeString)
             {
                 case "int":
                 case "long":
@@ -283,16 +305,22 @@ namespace STMExtension
                 case "float":
                 case "uint":
                 case "ulong":
-                    aFFullTypeStr = "TM" + FirstCharToUpper(aFTypeStr);
+                    aFFullTypeStr = "TM" + FirstCharToUpper(typeString);
                     break;
                 case "string":
                 default:
-                    aFFullTypeStr = "TMVar<" + aFTypeStr + ">";
+                    aFFullTypeStr = "TMVar<" + typeString + ">";
                     break;
             }
 
             var newTypeDcl = SyntaxFactory.ParseName(aFFullTypeStr + " "); //whitespace needed to seperate type from name
             return newTypeDcl;
+        }
+
+        private static NameSyntax DetermineSTMType(TypeSyntax aFType)
+        {
+            var aFTypeStr = aFType.GetTypeString();
+            return DetermineSTMType(aFTypeStr);
         }
 
         private static string FirstCharToUpper(string s)
@@ -422,20 +450,35 @@ namespace STMExtension
                 ArgumentListSyntax argList;
                 if (variable.Initializer != null)
                 {
-                    var argListContent = SyntaxFactory.SeparatedList(new List<ArgumentSyntax> { SyntaxFactory.Argument(variable.Initializer.Value) });
-                    argList = SyntaxFactory.ArgumentList(SyntaxFactory.ParseToken("("), argListContent, SyntaxFactory.ParseToken(")"));
+                    argList = CreateArgList(variable.Initializer.Value);
                 }
                 else
                 {
                     argList = SyntaxFactory.ArgumentList();
                 }
 
-                var initExpression = SyntaxFactory.ObjectCreationExpression(SyntaxFactory.ParseToken("new "), newTypeDcl, argList, null);
+                var initExpression = CreateObjectCreationExpression(newTypeDcl, argList);
                 var newVarDeclarator = variable.WithInitializer(SyntaxFactory.EqualsValueClause(initExpression));
                 buffer.Add(newVarDeclarator);
             }
 
             return SyntaxFactory.VariableDeclaration(newTypeDcl, SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>(buffer));
+        }
+
+        private static ArgumentListSyntax CreateArgList(ExpressionSyntax expr)
+        {
+            return CreateArgList(new List<ArgumentSyntax> { SyntaxFactory.Argument(expr) });
+        }
+
+        private static ArgumentListSyntax CreateArgList(IEnumerable<ArgumentSyntax> args)
+        {
+            var argListContent = SyntaxFactory.SeparatedList(args);
+            return SyntaxFactory.ArgumentList(SyntaxFactory.Token(SyntaxKind.OpenParenToken), argListContent, SyntaxFactory.Token(SyntaxKind.CloseParenToken));
+        }
+
+        private static ObjectCreationExpressionSyntax CreateObjectCreationExpression(TypeSyntax typeSyntax, ArgumentListSyntax argList)
+        {
+            return SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword), typeSyntax, argList, null);
         }
     }
 }

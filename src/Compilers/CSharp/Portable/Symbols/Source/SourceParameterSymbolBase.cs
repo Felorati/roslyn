@@ -15,6 +15,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private readonly Symbol _containingSymbol;
         private readonly ushort _ordinal;
 
+
         public SourceParameterSymbolBase(Symbol containingSymbol, int ordinal)
         {
             Debug.Assert((object)containingSymbol != null);

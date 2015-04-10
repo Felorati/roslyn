@@ -499,6 +499,7 @@ Microsoft.CodeAnalysis.IParameterSymbol.ExplicitDefaultValue.get
 Microsoft.CodeAnalysis.IParameterSymbol.HasExplicitDefaultValue.get
 Microsoft.CodeAnalysis.IParameterSymbol.IsOptional.get
 Microsoft.CodeAnalysis.IParameterSymbol.IsParams.get
+Microsoft.CodeAnalysis.IParameterSymbol.IsAtomic.get
 Microsoft.CodeAnalysis.IParameterSymbol.IsThis.get
 Microsoft.CodeAnalysis.IParameterSymbol.Ordinal.get
 Microsoft.CodeAnalysis.IParameterSymbol.OriginalDefinition.get
