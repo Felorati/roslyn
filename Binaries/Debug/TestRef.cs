@@ -10,14 +10,15 @@ namespace TestRefNamespace
         {
             return "teststring: " + i;
         }
-
+		
+		/*
         private static string TestMethod()
         {
             var s = "hej";
             //Expressiontest(s);
             int i = 12;
             return AtomicTest(i);
-        }
+        }*/
         /*
         private static string Expressiontest(string s)
         {

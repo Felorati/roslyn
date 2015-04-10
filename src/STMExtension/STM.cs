@@ -171,61 +171,10 @@ namespace STMExtension
                 var root = tree.GetRoot();
 
                 root = ReplaceProperties(root);
-
-                //replace atomic field types
-                List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
-                var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
-
-                //Replace local vars
+                root = ReplaceFieldTypes(root); //replace atomic field types
                 root = ReplaceLocalVars(root);
-
-                //replace atomics and orelses
-                var atomicNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
-                var atomicReplaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>();
-
-                foreach (AtomicStatementSyntax aNode in atomicNodes)
-                {
-                    //Build up arguments to library call
-                    List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
-
-                    //Atomic arg
-                    StatementSyntax aBlock = aNode.Statement; //(BlockSyntax)childNodes.ElementAt(0);
-                    var aLambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
-                    var atomicArg = SyntaxFactory.Argument(aLambda);
-                    aArguments.Add(atomicArg);
-
-                    //OrElse args
-                    var aOrElses = aNode.Orelses;
-                    foreach (var oe in aOrElses)
-                    {
-                        var oeLambda = SyntaxFactory.ParenthesizedLambdaExpression(oe.Statement);
-                        var oeArg = SyntaxFactory.Argument(oeLambda);
-                        aArguments.Add(oeArg);
-                    }
-
-                    //Create library call
-                    var atomicInvoNode = SyntaxFactory.ExpressionStatement(
-                    SyntaxFactory.InvocationExpression(
-                        SyntaxFactory.ParseName("STMSystem.Atomic"),
-                        SyntaxFactory.ArgumentList(
-                            arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
-
-                    atomicReplaceDic.Add(aNode, atomicInvoNode);
-                }
-
-                root = root.ReplaceNodes(atomicReplaceDic.Keys, (oldnode, newnode) => atomicReplaceDic[oldnode]);
-
-                //replace retry's
-                var retryReplaceDic = new Dictionary<RetryStatementSyntax, ExpressionStatementSyntax>();
-                var retryNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.RetryStatement)).ToList();
-                foreach (RetryStatementSyntax rNode in retryNodes)
-                {
-                    var retryInvoNode = SyntaxFactory.ExpressionStatement(
-                        SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
-                    retryReplaceDic.Add(rNode, retryInvoNode);
-                }
-                root = root.ReplaceNodes(retryReplaceDic.Keys, (oldnode, newnode) => retryReplaceDic[oldnode]);
+                root = ReplaceAtomicOrElseBlocks(root);
+                root = ReplaceRetry(root);
 
                 //Create new syntax tree (based on new root), and update it as the current tree in the trees array
                 SyntaxTree newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
@@ -374,6 +323,67 @@ namespace STMExtension
             //Replace type and initializers
             newFieldDcl = newFieldDcl.WithDeclaration(ConstructVariableDeclaration(newFieldDcl.Declaration));
             return newFieldDcl;
+        }
+
+        private static SyntaxNode ReplaceRetry(SyntaxNode root)
+        {
+            //replace retry's
+            var retryReplaceDic = new Dictionary<RetryStatementSyntax, ExpressionStatementSyntax>();
+            var retryNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.RetryStatement)).ToList();
+            foreach (RetryStatementSyntax rNode in retryNodes)
+            {
+                var retryInvoNode = SyntaxFactory.ExpressionStatement(
+                    SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
+                retryReplaceDic.Add(rNode, retryInvoNode);
+            }
+            return root.ReplaceNodes(retryReplaceDic.Keys, (oldnode, newnode) => retryReplaceDic[oldnode]);
+        }
+
+        private static SyntaxNode ReplaceAtomicOrElseBlocks(SyntaxNode root)
+        {
+            //replace atomic and orelse blocks
+            var atomicNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
+            var atomicReplaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>();
+
+            foreach (AtomicStatementSyntax aNode in atomicNodes)
+            {
+                //Build up arguments to library call
+                List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
+
+                //Atomic arg
+                StatementSyntax aBlock = aNode.Statement; //(BlockSyntax)childNodes.ElementAt(0);
+                var aLambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
+                var atomicArg = SyntaxFactory.Argument(aLambda);
+                aArguments.Add(atomicArg);
+
+                //OrElse args
+                var aOrElses = aNode.Orelses;
+                foreach (var oe in aOrElses)
+                {
+                    var oeLambda = SyntaxFactory.ParenthesizedLambdaExpression(oe.Statement);
+                    var oeArg = SyntaxFactory.Argument(oeLambda);
+                    aArguments.Add(oeArg);
+                }
+
+                //Create library call
+                var atomicInvoNode = SyntaxFactory.ExpressionStatement(
+                SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.ParseName("STMSystem.Atomic"),
+                    SyntaxFactory.ArgumentList(
+                        arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
+
+                atomicReplaceDic.Add(aNode, atomicInvoNode);
+            }
+
+            return root.ReplaceNodes(atomicReplaceDic.Keys, (oldnode, newnode) => atomicReplaceDic[oldnode]);
+        }
+
+        private static SyntaxNode ReplaceFieldTypes(SyntaxNode root)
+        {
+            //replace atomic field types
+            List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
+            var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+            return root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
         }
 
         private static SyntaxNode ReplaceLocalVars(SyntaxNode root)
