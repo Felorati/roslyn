@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,11 +12,12 @@ namespace STMExtension
 {
     public class STM
     {
+        private static readonly string STMNameSpace = "STM.Implementation.Lockbased";
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
             compilation = ReplaceArguments(compilation);
-            compilation = ReplaceAtomicVariableUsage(compilation);
+            //compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceParameters(compilation);
 
             foreach (var tree in compilation.SyntaxTrees)
@@ -163,7 +164,7 @@ namespace STMExtension
         private static bool IsAtomicType(TypeInfo typeInfo)
         {
             bool isAtomic = false;
-            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace.ToString() == "STM.Implementation.Lockbased")
+            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace.ToString() == STMNameSpace)
             {
                 switch (typeInfo.Type.Name)
                 {
@@ -313,7 +314,7 @@ namespace STMExtension
                     break;
             }
 
-            var newTypeDcl = SyntaxFactory.ParseName(aFFullTypeStr + " "); //whitespace needed to seperate type from name
+            var newTypeDcl = SyntaxFactory.ParseName(PreprendNameSpace(aFFullTypeStr) + " "); //whitespace needed to seperate type from name
             return newTypeDcl;
         }
 
@@ -361,49 +362,60 @@ namespace STMExtension
             foreach (RetryStatementSyntax rNode in retryNodes)
             {
                 var retryInvoNode = SyntaxFactory.ExpressionStatement(
-                    SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName("STMSystem.Retry")));
+                    SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Retry"))));
                 retryReplaceDic.Add(rNode, retryInvoNode);
             }
             return root.ReplaceNodes(retryReplaceDic.Keys, (oldnode, newnode) => retryReplaceDic[oldnode]);
         }
 
+        private static IEnumerable<AtomicStatementSyntax> GetAtomics(SyntaxNode root)
+        {
+            return root.DescendantNodes().OfType<AtomicStatementSyntax>();
+        }
+
         private static SyntaxNode ReplaceAtomicOrElseBlocks(SyntaxNode root)
         {
             //replace atomic and orelse blocks
-            var atomicNodes = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.AtomicStatement)).ToList();
-            var atomicReplaceDic = new Dictionary<AtomicStatementSyntax, ExpressionStatementSyntax>();
-
-            foreach (AtomicStatementSyntax aNode in atomicNodes)
+            while (GetAtomics(root).Any())
             {
-                //Build up arguments to library call
-                List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
+                List<AtomicStatementSyntax> atomicNodes = root.DescendantNodes().
+                    Where(
+                        node => node.IsKind(SyntaxKind.AtomicStatement) && //is atomic node
+                        !GetAtomics(node).Any()) //does not have any inner atomic
+                        .Cast<AtomicStatementSyntax>().ToList();
+                root = root.ReplaceNodes(atomicNodes, (oldnode, newnode) => ReplaceAtomicOrElse(oldnode));
+            }
+            return root;
+        }
 
-                //Atomic arg
-                StatementSyntax aBlock = aNode.Statement; //(BlockSyntax)childNodes.ElementAt(0);
-                var aLambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
-                var atomicArg = SyntaxFactory.Argument(aLambda);
-                aArguments.Add(atomicArg);
+        private static ExpressionStatementSyntax ReplaceAtomicOrElse(AtomicStatementSyntax anAtomic)
+        {
+            //Build up arguments to library call
+            List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
 
-                //OrElse args
-                var aOrElses = aNode.Orelses;
-                foreach (var oe in aOrElses)
-                {
-                    var oeLambda = SyntaxFactory.ParenthesizedLambdaExpression(oe.Statement);
-                    var oeArg = SyntaxFactory.Argument(oeLambda);
-                    aArguments.Add(oeArg);
-                }
+            //Atomic arg
+            StatementSyntax aBlock = anAtomic.Statement;
+            var aLambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
+            var atomicArg = SyntaxFactory.Argument(aLambda);
+            aArguments.Add(atomicArg);
 
-                //Create library call
-                var atomicInvoNode = SyntaxFactory.ExpressionStatement(
-                SyntaxFactory.InvocationExpression(
-                    SyntaxFactory.ParseName("STMSystem.Atomic"),
-                    SyntaxFactory.ArgumentList(
-                        arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
-
-                atomicReplaceDic.Add(aNode, atomicInvoNode);
+            //OrElse args
+            var aOrElses = anAtomic.Orelses;
+            foreach (var oe in aOrElses)
+            {
+                var oeLambda = SyntaxFactory.ParenthesizedLambdaExpression(oe.Statement);
+                var oeArg = SyntaxFactory.Argument(oeLambda);
+                aArguments.Add(oeArg);
             }
 
-            return root.ReplaceNodes(atomicReplaceDic.Keys, (oldnode, newnode) => atomicReplaceDic[oldnode]);
+            //Create library call
+            var atomicInvoNode = SyntaxFactory.ExpressionStatement(
+            SyntaxFactory.InvocationExpression(
+                SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Atomic")),
+                SyntaxFactory.ArgumentList(
+                    arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
+
+            return atomicInvoNode;
         }
 
         private static SyntaxNode ReplaceFieldTypes(SyntaxNode root)
@@ -479,6 +491,11 @@ namespace STMExtension
         private static ObjectCreationExpressionSyntax CreateObjectCreationExpression(TypeSyntax typeSyntax, ArgumentListSyntax argList)
         {
             return SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword), typeSyntax, argList, null);
+        }
+
+        private static string PreprendNameSpace(string str)
+        {
+            return STMNameSpace + "." + str;
         }
     }
 }
