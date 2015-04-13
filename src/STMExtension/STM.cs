@@ -224,7 +224,7 @@ namespace STMExtension
         private static bool IsAtomicType(TypeInfo typeInfo)
         {
             bool isAtomic = false;
-            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace.ToString() == STMNameSpace)
+            if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace != null && typeInfo.Type.ContainingNamespace.ToString() == STMNameSpace)
             {
                 switch (typeInfo.Type.Name)
                 {

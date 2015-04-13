@@ -138,7 +138,7 @@ namespace TestRefNamespace
 
         }*/
         
-        private static void Add(int i, int result)
+        private static int Add(int i, int result)
         {
             atomic int x = 0, y = 1, z = 2;
             atomic int someInt;
@@ -184,12 +184,16 @@ namespace TestRefNamespace
                 Console.WriteLine("If6 works");
             }
             result += 1;
-            return;
+            return result;
         }
 		
-		private static void NestAtomic()
+		private static int NestAtomic()
 		{
-			atomic{
+			atomic dynamic myDyn = 5;
+			int x = (int) myDyn;
+			myDyn = 10;
+
+            atomic{
 				int i = 5;
 				atomic{
 					i = 1337;
