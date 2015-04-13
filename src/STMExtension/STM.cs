@@ -211,7 +211,7 @@ namespace STMExtension
                 }
             }
 
-            return true; 
+            return true;
         }
 
         private static MemberAccessExpressionSyntax ReplaceIdentifier(IdentifierNameSyntax iden)
@@ -241,13 +241,13 @@ namespace STMExtension
                         break;
                 }
             }
-            
+
             return isAtomic;
         }
 
         public static void Extend(ref SyntaxTree[] trees)
         {
-			//Cleaning debug and testing file upon each compilation
+            //Cleaning debug and testing file upon each compilation
             File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", "");
 
             for (int i = 0; i < trees.Length; i++)
@@ -269,6 +269,8 @@ namespace STMExtension
             }
         }
 
+
+
         private static void PrintDebugSource(SyntaxTree tree)
         {
             var textAfter = tree.GetText().ToString();
@@ -281,14 +283,14 @@ namespace STMExtension
             //Generates a manual property
             var allProperties = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.PropertyDeclaration)).Cast<PropertyDeclarationSyntax>().ToList();
             var atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-            
-            foreach(var atomicProperty in atomicProperties)
+
+            foreach (var atomicProperty in atomicProperties)
             {
                 var modifiersWithoutAtomic = RemoveAtomicMod(atomicProperty.Modifiers);
                 var backingFieldIdentifier = GenerateFieldName(atomicProperty.Identifier);
 
                 var getModifier = SyntaxFactory.TokenList();
-                var setModifier = SyntaxFactory.TokenList();      
+                var setModifier = SyntaxFactory.TokenList();
                 GetPropertyModifier(atomicProperty, ref getModifier, ref setModifier);
 
                 var returnStatement = SyntaxFactory.ReturnStatement(SyntaxFactory.Token(SyntaxKind.ReturnKeyword), SyntaxFactory.IdentifierName(backingFieldIdentifier), SyntaxFactory.Token(SyntaxKind.SemicolonToken));
@@ -310,7 +312,7 @@ namespace STMExtension
             allProperties = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.PropertyDeclaration)).Cast<PropertyDeclarationSyntax>().ToList();
             atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
             root = root.ReplaceNodes(atomicProperties, (oldnode, newnode) => ReplaceProperty(oldnode));
-                        
+
             return root;
         }
 
@@ -448,7 +450,7 @@ namespace STMExtension
             return root;
         }
 
-        private static ExpressionStatementSyntax ReplaceAtomicOrElse(AtomicStatementSyntax anAtomic)
+        private static StatementSyntax ReplaceAtomicOrElse(AtomicStatementSyntax anAtomic)
         {
             //Build up arguments to library call
             List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
@@ -468,12 +470,20 @@ namespace STMExtension
                 aArguments.Add(oeArg);
             }
 
-            //Create library call
-            var atomicInvoNode = SyntaxFactory.ExpressionStatement(
-            SyntaxFactory.InvocationExpression(
+            //Create library call  
+            var expression = SyntaxFactory.InvocationExpression(
                 SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Atomic")),
                 SyntaxFactory.ArgumentList(
-                    arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments))));
+                    arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments)));
+
+            //Add return statement if there is return in the atomic block, else make it an expression statement
+            var allButLambdas = aBlock.DescendantNodes((node) => !node.IsKind(SyntaxKind.ParenthesizedLambdaExpression));
+            var allReturns = allButLambdas.Where(node => node.IsKind(SyntaxKind.ReturnStatement)).ToList();
+
+            StatementSyntax atomicInvoNode = (allReturns.Count > 0) ?
+                atomicInvoNode = SyntaxFactory.ReturnStatement(SyntaxFactory.Token(SyntaxKind.ReturnKeyword), expression, SyntaxFactory.Token(SyntaxKind.SemicolonToken)) :
+                atomicInvoNode = SyntaxFactory.ExpressionStatement(expression);
+
 
             return atomicInvoNode;
         }
