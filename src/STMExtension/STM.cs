@@ -19,6 +19,7 @@ namespace STMExtension
             compilation = ReplaceMethodArguments(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
+            compilation = ReplaceMemberAccesses(compilation);
             compilation = ReplaceParameters(compilation);
 
             foreach (var tree in compilation.SyntaxTrees)
@@ -28,7 +29,56 @@ namespace STMExtension
 
         }
 
-        private static CSharpCompilation ReplaceConstructorArguments( CSharpCompilation compilation)
+        private static CSharpCompilation ReplaceMemberAccesses(CSharpCompilation compilation)
+        {
+            var newTrees = compilation.SyntaxTrees.ToArray();
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var replacedNodes = new HashSet<int>();
+                var replaced = true;
+                var currentPos = -1;
+                while (replaced)
+                {
+                    var tree = compilation.SyntaxTrees[i];
+                    var root = tree.GetRoot();
+                    var semanticModel = compilation.GetSemanticModel(tree);
+
+                    var memberAccess = root.DescendantNodes().OfType<MemberAccessExpressionSyntax>().FirstOrDefault((ma) => currentPos < ma.Span.End && IsAtomicType(semanticModel.GetTypeInfo(ma)));
+                    if (memberAccess != null)
+                    {
+                        root = root.ReplaceNode(memberAccess, ReplaceMemberAccess(memberAccess));
+                        currentPos = memberAccess.Span.End;
+                    }
+                    else
+                    {
+                        replaced = false;
+                    }
+
+                    tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                    newTrees[i] = tree;
+                    compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+                }
+            }
+            return compilation;
+        }
+
+        private static bool ReplaceMemberAccessCondition(MemberAccessExpressionSyntax ma)
+        {
+            if ( ma.Parent is MemberAccessExpressionSyntax && ((MemberAccessExpressionSyntax)ma.Parent).Name.Identifier.ValueText == "Value")
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static MemberAccessExpressionSyntax ReplaceMemberAccess(MemberAccessExpressionSyntax ma)
+        {
+            var replacement = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ma, SyntaxFactory.IdentifierName("Value"));
+            return replacement;
+        }
+
+        private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
         {
             var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
 
@@ -138,19 +188,6 @@ namespace STMExtension
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
 
-                var list = root.DescendantNodes().OfType<IdentifierNameSyntax>();
-
-                foreach (var item in list)
-                {
-                    var symbol = semanticModel.GetSymbolInfo(item);
-                    var condition = ReplaceCondition(item);
-                    var isAtomic = IsAtomicType(semanticModel.GetTypeInfo(item));
-                    if (isAtomic && condition)
-                    {
-                        var replacemet = ReplaceIdentifier(item);
-                    }
-                }
-
                 var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
                     .Where(iden => ReplaceCondition(iden) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
                 root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
@@ -183,12 +220,17 @@ namespace STMExtension
 
         private static bool ReplaceCondition(IdentifierNameSyntax iden)
         {
-            if (iden.Parent is VariableDeclarationSyntax || iden.Parent is ParameterSyntax)
+            if (iden.Parent is VariableDeclarationSyntax 
+                || iden.Parent is ParameterSyntax 
+                || iden.Parent is MemberAccessExpressionSyntax)
             {
                 return false;
             }
 
-            if (iden.Parent is QualifiedNameSyntax && iden.Parent.Parent != null && (iden.Parent.Parent is VariableDeclarationSyntax || iden.Parent.Parent is ParameterSyntax))
+            if (iden.Parent is QualifiedNameSyntax && iden.Parent.Parent != null && 
+                (iden.Parent.Parent is VariableDeclarationSyntax 
+                || iden.Parent.Parent is ParameterSyntax 
+                || iden.Parent.Parent is MemberAccessExpressionSyntax))
             {
                 return false;
             }
