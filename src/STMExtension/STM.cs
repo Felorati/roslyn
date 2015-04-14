@@ -14,8 +14,33 @@ namespace STMExtension
     {
         private static readonly string STMNameSpace = "STM.Implementation.Lockbased";
 
+        public static void Extend(ref SyntaxTree[] trees)
+        {
+            //Cleaning debug and testing file upon each compilation
+            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", "");
+
+            for (int i = 0; i < trees.Length; i++)
+            {
+                var tree = trees[i];
+                var root = tree.GetRoot();
+
+                root = ReplaceProperties(root);
+                root = ReplaceFieldTypes(root); //replace atomic field types
+                root = ReplaceAtomicOrElseBlocks(root);
+                root = ReplaceRetry(root);
+
+                //Create new syntax tree (based on new root), and update it as the current tree in the trees array
+                SyntaxTree newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                trees[i] = newTree;
+                //Get source text after transformation (for testing and debug purposes)
+                PrintDebugSource(newTree);
+            }
+        }
+
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
+            compilation = ReplaceLocalVars(compilation);
+            //compilation = ReplaceVarWithType(compilation);
             compilation = ReplaceMethodArguments(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
@@ -26,6 +51,26 @@ namespace STMExtension
                 PrintDebugSource(tree);
             }
 
+        }
+
+        private static CSharpCompilation ReplaceVarWithType(CSharpCompilation compilation)
+        {
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+            for (int i = 0, count = compilation.SyntaxTrees.Length; i < count; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                var semanticModel = compilation.GetSemanticModel(tree);
+
+                var expressions = root.DescendantNodes().OfType<VariableDeclaratorSyntax>();
+                foreach(var expression in expressions)
+                {
+                    var resolvedType = semanticModel.GetTypeInfo(expression);
+                    Console.WriteLine();
+
+                }
+            }
+            return CSharpCompilation.Create(compilation.AssemblyName, null, compilation.References, compilation.Options);
         }
 
         private static CSharpCompilation ReplaceConstructorArguments( CSharpCompilation compilation)
@@ -245,29 +290,7 @@ namespace STMExtension
             return isAtomic;
         }
 
-        public static void Extend(ref SyntaxTree[] trees)
-        {
-            //Cleaning debug and testing file upon each compilation
-            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", "");
 
-            for (int i = 0; i < trees.Length; i++)
-            {
-                var tree = trees[i];
-                var root = tree.GetRoot();
-
-                root = ReplaceProperties(root);
-                root = ReplaceFieldTypes(root); //replace atomic field types
-                root = ReplaceLocalVars(root);
-                root = ReplaceAtomicOrElseBlocks(root);
-                root = ReplaceRetry(root);
-
-                //Create new syntax tree (based on new root), and update it as the current tree in the trees array
-                SyntaxTree newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                trees[i] = newTree;
-                //Get source text after transformation (for testing and debug purposes)
-                PrintDebugSource(newTree);
-            }
-        }
 
 
 
@@ -357,6 +380,8 @@ namespace STMExtension
             return nameAsString.ToString();
         }
 
+
+
         private static NameSyntax DetermineSTMType(string typeString)
         {
             string aFFullTypeStr = "";
@@ -380,10 +405,25 @@ namespace STMExtension
             return newTypeDcl;
         }
 
+        private static NameSyntax DetermineSTMType(TypeSyntax aFType, SemanticModel semanticModel)
+        {
+            string aFTypeString = aFType.GetTypeString();
+            if (aFTypeString == "var")
+            {
+                aFTypeString = InferType(aFType, semanticModel).Type.ToString();
+            }
+            return DetermineSTMType(aFTypeString);
+        }
+
         private static NameSyntax DetermineSTMType(TypeSyntax aFType)
         {
-            var aFTypeStr = aFType.GetTypeString();
-            return DetermineSTMType(aFTypeStr);
+            string aFTypeString = aFType.GetTypeString();
+            return DetermineSTMType(aFTypeString);
+        }
+
+        private static TypeInfo InferType(TypeSyntax typeString, SemanticModel semanticModel)
+        {
+            return semanticModel.GetTypeInfo(typeString);
         }
 
         private static string FirstCharToUpper(string s)
@@ -496,23 +536,34 @@ namespace STMExtension
             return root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
         }
 
-        private static SyntaxNode ReplaceLocalVars(SyntaxNode root)
+        private static CSharpCompilation ReplaceLocalVars(CSharpCompilation compilation)
         {
-            //replace atomic local var dcl types
-            var allLocals = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.LocalDeclarationStatement)).Cast<LocalDeclarationStatementSyntax>().ToList();
-            var atomicLocals = allLocals.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
 
-            root = root.ReplaceNodes(atomicLocals, (oldnode, newnode) => ReplaceLocalVar(oldnode));
-            return root;
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                var semanticModel = compilation.GetSemanticModel(tree);
+
+                //replace atomic local var dcl types
+                var allLocals = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.LocalDeclarationStatement)).Cast<LocalDeclarationStatementSyntax>().ToList();
+                var atomicLocals = allLocals.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+
+                root = root.ReplaceNodes(atomicLocals, (oldnode, newnode) => ReplaceLocalVar(oldnode, semanticModel));
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+            }
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
-        private static LocalDeclarationStatementSyntax ReplaceLocalVar(LocalDeclarationStatementSyntax aLocal)
+        private static LocalDeclarationStatementSyntax ReplaceLocalVar(LocalDeclarationStatementSyntax aLocal, SemanticModel semanticModel)
         {
             //Remove atomic from modifier list
             var newLocalDecl = aLocal.WithModifiers(RemoveAtomicMod(aLocal.Modifiers));
 
             //Change declaration type to our TMVar type (or specific like TMInt)
-            newLocalDecl = newLocalDecl.WithDeclaration(ConstructVariableDeclaration(aLocal.Declaration));
+            newLocalDecl = newLocalDecl.WithDeclaration(ConstructVariableDeclaration(aLocal.Declaration, semanticModel));
             return newLocalDecl;
         }
 
@@ -522,9 +573,9 @@ namespace STMExtension
             return SyntaxFactory.TokenList(newModifierList);
         }
 
-        private static VariableDeclarationSyntax ConstructVariableDeclaration(VariableDeclarationSyntax aVarDcl)
+        private static VariableDeclarationSyntax ConstructVariableDeclaration(VariableDeclarationSyntax aVarDcl, SemanticModel semanticModel = null)
         {
-            var newTypeDcl = DetermineSTMType(aVarDcl.Type);
+            var newTypeDcl = DetermineSTMType(aVarDcl.Type, semanticModel);
             
             var buffer = new List<VariableDeclaratorSyntax>();
             foreach (var variable in aVarDcl.Variables)
