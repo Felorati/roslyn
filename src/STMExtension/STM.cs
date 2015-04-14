@@ -53,7 +53,7 @@ namespace STMExtension
 
         }
 
-                private static CSharpCompilation ReplaceMemberAccesses(CSharpCompilation compilation)
+        private static CSharpCompilation ReplaceMemberAccesses(CSharpCompilation compilation)
         {
             var newTrees = compilation.SyntaxTrees.ToArray();
             for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
@@ -88,12 +88,7 @@ namespace STMExtension
 
         private static bool ReplaceMemberAccessCondition(MemberAccessExpressionSyntax ma)
         {
-            if ( ma.Parent is MemberAccessExpressionSyntax && ((MemberAccessExpressionSyntax)ma.Parent).Name.Identifier.ValueText == "Value")
-            {
-                return false;
-            }
-
-            return true;
+            return !(ma.Parent is MemberAccessExpressionSyntax && ((MemberAccessExpressionSyntax)ma.Parent).Name.Identifier.ValueText == "Value");
         }
 
         private static MemberAccessExpressionSyntax ReplaceMemberAccess(MemberAccessExpressionSyntax ma)
@@ -101,30 +96,6 @@ namespace STMExtension
             var replacement = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ma, SyntaxFactory.IdentifierName("Value"));
             return replacement;
         }
-
-        private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
-
-
-                var methodCalls = root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>();
-                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceConstructorArgument(semanticModel, oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-        }
-
-        private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
-        {
 
         private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
         {
