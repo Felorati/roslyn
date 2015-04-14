@@ -5,8 +5,13 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+       
+
         static void Main()
         {
+            int x = 10;
+            AtomicRefTest(ref x);
+
             var test = new TestRef(1);
             var test2 = new TestRef(2,test);
             var test3 = new TestRef(3,test2);
@@ -22,6 +27,11 @@ namespace TestRefNamespace
             NestAtomic();
             System.Console.WriteLine("test");
             
+        }
+
+        private static void AtomicRefTest(atomic ref int test)
+        {
+            test = 12;
         }
 
         private atomic int x;

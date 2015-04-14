@@ -40,6 +40,7 @@ namespace STMExtension
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
             compilation = ReplaceLocalVars(compilation);
+            compilation = ReplaceAtomicRefOut(compilation);
             compilation = ReplaceMethodArguments(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
@@ -51,6 +52,65 @@ namespace STMExtension
                 PrintDebugSource(tree);
             }
 
+        }
+
+        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation)
+        {
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                var semanticModel = compilation.GetSemanticModel(tree);
+
+
+                var methodCalls = root.DescendantNodes().OfType<InvocationExpressionSyntax>();
+                foreach (var ive in methodCalls)
+                {
+                    var info = semanticModel.GetSymbolInfo(ive);
+                    if (info.Symbol != null)
+                    {
+                        IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
+                        var localDecls = new List<LocalDeclarationStatementSyntax>();
+                        var assignments = new List<AssignmentExpressionSyntax>();
+                        var args = new List<ArgumentSyntax>();
+
+                        for (int j = 0; j < methodInfo.Parameters.Count(); j++)
+                        {
+                            var parameter = methodInfo.Parameters[j];
+                            var arg = ive.ArgumentList.Arguments[j];
+                            if (parameter.IsAtomic && (parameter.RefKind == RefKind.Ref || parameter.RefKind == RefKind.Out))
+                            {
+                                //Generate local variable
+                                var typeString = parameter.Type.ToString();
+                                var type = DetermineSTMType(typeString);
+                                var initializer = SyntaxFactory.EqualsValueClause(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
+                                var identifier = SyntaxFactory.Identifier("_" + Guid.NewGuid().ToString().Replace("-", string.Empty));
+                                var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
+                                var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
+                                var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
+                                localDecls.Add(localDecl);
+
+                                //Generate new argument
+                                arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
+
+                                //Generate assignment to actual parameter from local var;
+                                var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
+                                var assigment = SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess);
+                                assignments.Add(assigment);
+                            }
+
+                            args.Add(arg);
+                        }
+                    }
+                }
+
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+            }
+
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
         private static CSharpCompilation ReplaceMemberAccesses(CSharpCompilation compilation)
@@ -93,8 +153,13 @@ namespace STMExtension
 
         private static MemberAccessExpressionSyntax ReplaceMemberAccess(MemberAccessExpressionSyntax ma)
         {
-            var replacement = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, ma, SyntaxFactory.IdentifierName("Value"));
+            var replacement = CreatePropertyAccess(ma, "Value");
             return replacement;
+        }
+
+        private static MemberAccessExpressionSyntax CreatePropertyAccess(ExpressionSyntax expression, string property)
+        {
+            return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expression, SyntaxFactory.IdentifierName(property));
         }
 
         private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
