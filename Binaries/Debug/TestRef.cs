@@ -26,6 +26,21 @@ namespace TestRefNamespace
 
         private atomic int x;
         private atomic TestRef next;
+		
+		private static string AtomicTest(atomic int i, atomic TestRef extra)
+        {
+            return "teststring: " + i;
+        }
+		
+		public void MethodOverload(int par, int par2)
+		{
+
+		}
+
+		public void MethodOverload(atomic int par, int par2)
+		{
+
+		}
         
         private TestRef GetNext()
         {
@@ -46,7 +61,6 @@ namespace TestRefNamespace
         {
             return "teststring: " + i;
         }
-		
 		
         private static string TestMethod()
         {

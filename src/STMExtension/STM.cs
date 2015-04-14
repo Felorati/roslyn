@@ -21,12 +21,154 @@ namespace STMExtension
             compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceMemberAccesses(compilation);
             compilation = ReplaceParameters(compilation);
+            CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
             foreach (var tree in compilation.SyntaxTrees)
             {
                 PrintDebugSource(tree);
             }
 
+        }
+
+        public struct MethodSignature
+        {
+            public string name;
+            public List<string> paramTypes;
+            public MethodSignature(string name, List<string> paramTypes)
+            {
+                this.name = name;
+                this.paramTypes = paramTypes;
+            }
+            public override string ToString()
+            {
+                StringBuilder strB = new StringBuilder();
+                strB.Append("Methodname: " + name + ", Parameter types: ");
+                foreach (var pt in paramTypes)
+                {
+                    strB.Append(pt + " ");
+                }
+                return strB.ToString();
+            }
+        }
+
+        private static void CheckMethodSignatures(Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation)
+        {
+            var newTrees = compilation.SyntaxTrees.ToArray();
+            foreach(var tree in newTrees)
+            {
+                var classDcls = tree.GetRoot().DescendantNodes().OfType<TypeDeclarationSyntax>(); //class and struct
+
+                //check method signatures for each typedeclaration
+                foreach(var cDcl in classDcls)
+                {
+                    var methodDcls = cDcl.DescendantNodes().OfType<MethodDeclarationSyntax>().ToList();
+                    List<MethodSignature> methodSigs = new List<MethodSignature>();
+                    
+                    //Build method signatures
+                    foreach(var mDcl in methodDcls)
+                    {
+                        string mName = mDcl.Identifier.ValueText;
+                        var mParams = mDcl.ParameterList.Parameters;
+                        var mTypeParams = new List<string>();
+
+                        foreach(var mPar in mParams)
+                        {
+                            string mParType = mPar.Type.GetTypeString();
+                            mTypeParams.Add(mParType);
+                        }
+
+                        MethodSignature m = new MethodSignature(mName, mTypeParams);
+                        methodSigs.Add(m);
+                    }
+
+                    //Check for methodsigs with same name does not have same paramtypes
+                    methodSigs = methodSigs.Where(m => methodSigs.Where(m2 => m.name == m2.name).Count() > 1).ToList();
+                    Dictionary<string, List<MethodSignature>> groupedMethodSigs = new Dictionary<string, List<MethodSignature>>();
+                    foreach(var ms in methodSigs)
+                    {
+                        List<MethodSignature> value;
+                        if (groupedMethodSigs.ContainsKey(ms.name))
+                        {
+                            value = groupedMethodSigs[ms.name];
+                            value.Add(ms);
+                            groupedMethodSigs[ms.name] = value;
+                        }
+                        else
+                        {
+                            value = new List<MethodSignature>() { ms };
+                            groupedMethodSigs.Add(ms.name, value);
+                        }
+                    }
+
+                    //alternative method til at udregne groupedMethodSigs
+                    //var groupedMethodSigs = methodSigs.GroupBy(ms => ms.name, ms => ms, (name, ms) => new { Name = name, MethodSigs = ms }).ToList();
+
+                    //Replace transactional types to original types
+                    var copyDic = new Dictionary<string, List<MethodSignature>>(groupedMethodSigs); //copy needed inorder to update dic while looping
+                    foreach (var kvpair in copyDic)
+                    {
+                        List<MethodSignature> newMsSignatures = new List<MethodSignature>(); //replace 
+                        foreach(var ms in kvpair.Value)
+                        {
+                            List<string> newMsParams = new List<string>();
+                            foreach(var msParamType in ms.paramTypes)
+                            {
+                                newMsParams.Add(DetermineOriginalType(msParamType));
+                            }
+                            newMsSignatures.Add(new MethodSignature(ms.name, newMsParams));
+                        }
+                        groupedMethodSigs[kvpair.Key] = newMsSignatures;
+                    }
+
+                    //Check if there are identical methodsignatures
+                    foreach(List<MethodSignature> msList in groupedMethodSigs.Values)
+                    {
+                        List<MethodSignature> identicalMethodSigs = msList.Where(ms => msList.Where(ms2 => ms.name == ms2.name && ms.paramTypes.SequenceEqual(ms2.paramTypes)).Count() > 1).ToList();
+                        if(identicalMethodSigs.Any())
+                        {
+                            StringBuilder strB = new StringBuilder();
+                            strB.Append("Identical method signatures exists:");
+                            int i = 0;
+                            while(i < identicalMethodSigs.Count)
+                            {
+                                strB.AppendLine();
+                                strB.Append("[" + i + "]: " + identicalMethodSigs[i].ToString());
+                                i++;
+                            }
+                            throw new Exception(strB.ToString());
+                        }
+                    }
+                }
+            }
+        }
+
+        private static string DetermineOriginalType(string typeString)
+        {
+            string originalType = "";
+
+            if(typeString.StartsWith("TMVar<"))
+            {
+                originalType = typeString.Substring(6, typeString.Length - 7);
+            }
+            else
+            {
+                switch (typeString)
+                {
+                    case "TMInt":
+                    case "TMLong":
+                    case "TMDouble":
+                    case "TMFloat":
+                    case "TMUint":
+                    case "TMUlong":
+                        originalType = FirstCharToLower(typeString.Substring(2));
+                        break;
+                    default:
+                        originalType = typeString;
+                        break;
+                }
+            }
+            
+            return originalType;
         }
 
         private static CSharpCompilation ReplaceMemberAccesses(CSharpCompilation compilation)
@@ -438,6 +580,17 @@ namespace STMExtension
             // Return char and concat substring.
             return char.ToUpper(s[0]) + s.Substring(1);
         }
+        private static string FirstCharToLower(string s)
+        {
+            // Check for empty string.
+            if (string.IsNullOrEmpty(s))
+            {
+                return string.Empty;
+            }
+            // Return char and concat substring.
+            return char.ToLower(s[0]) + s.Substring(1);
+        }
+
 
         private static ParameterSyntax ReplaceParam(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
         {
