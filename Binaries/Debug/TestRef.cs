@@ -7,8 +7,12 @@ namespace TestRefNamespace
     {
         static void Main()
         {
-            var test = new TestRef(12);
-            //Console.WriteLine(test.x);
+            var test = new TestRef(1);
+            var test2 = new TestRef(2,test);
+            var test3 = new TestRef(3,test2);
+            var test4 = new TestRef(4,test3);
+
+            Console.WriteLine(test.next.next.x);
             int total = 20;
             System.Console.WriteLine("Original value of 'total': {0}", total);
 
@@ -21,10 +25,21 @@ namespace TestRefNamespace
         }
 
         private atomic int x;
+        private atomic TestRef next;
+        
+        private TestRef GetNext()
+        {
+            return next;
+        }
 
         public TestRef(atomic int i)
         {
             x = i;
+        }
+        public TestRef(atomic int i, TestRef next)
+        {
+            x = i;
+            this.next = next;
         }
 
         private static string AtomicTest(atomic int i)
@@ -138,7 +153,7 @@ namespace TestRefNamespace
 
         }*/
         
-        private static void Add(int i, int result)
+        private static int Add(int i, int result)
         {
             atomic int x = 0, y = 1, z = 2;
             atomic int someInt;
@@ -184,12 +199,16 @@ namespace TestRefNamespace
                 Console.WriteLine("If6 works");
             }
             result += 1;
-            return;
+            return result;
         }
 		
-		private static void NestAtomic()
+		private static int NestAtomic()
 		{
-			atomic{
+			atomic dynamic myDyn = 5;
+			int x = (int) myDyn;
+			myDyn = 10;
+
+            atomic{
 				int i = 5;
 				atomic{
 					i = 1337;
