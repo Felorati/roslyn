@@ -274,11 +274,11 @@ namespace STMExtension
                     //alternative method to produce groupedMethodSigs
                     //var groupedMethodSigs = methodSigs.GroupBy(ms => ms.name, ms => ms, (name, ms) => new { Name = name, MethodSigs = ms }).ToList();
 
-                    //Replace transactional types to original types
+                    //Replace transactional types to original types (for checking if some are equal)
                     var copyDic = new Dictionary<string, List<MethodSignature>>(groupedMethodSigs); //copy needed inorder to update dic while looping
                     foreach (var kvpair in copyDic)
                     {
-                        List<MethodSignature> newMsSignatures = new List<MethodSignature>(); //replace 
+                        List<MethodSignature> newMsSignatures = new List<MethodSignature>();
                         foreach(var ms in kvpair.Value)
                         {
                             List<MsParam> newMsParams = new List<MsParam>();
