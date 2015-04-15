@@ -46,7 +46,7 @@ namespace STMExtension
             compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceMemberAccesses(compilation);
             compilation = ReplaceParameters(compilation);
-            CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
+            //CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
             foreach (var tree in compilation.SyntaxTrees)
             {

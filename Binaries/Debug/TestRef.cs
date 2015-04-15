@@ -47,7 +47,7 @@ namespace TestRefNamespace
 
 		}
 
-		public void MethodOverload(atomic int par, int par2)
+		public void MethodOverload(ref int par, int par2)
 		{
 
 		}
