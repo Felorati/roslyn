@@ -30,5 +30,23 @@ namespace STMExtension
                 throw new Exception(string.Format("Unexcepted type: {0} can not return type string", typesyntax.GetType().FullName));
             }
         }
+
+
+        public static StatementSyntax GetClosestStatementSyntax(this SyntaxNode node)
+        {
+            if (node is StatementSyntax)
+            {
+                return (StatementSyntax)node;
+            }
+            else if (node.Parent != null)
+            {
+                return node.Parent.GetClosestStatementSyntax();
+            }
+            else
+            {
+                return null;
+            }
+
+        }
     }
 }

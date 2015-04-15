@@ -55,26 +55,59 @@ namespace STMExtension
 
         }
 
+        private class CompilationState
+        {
+            public CSharpCompilation Compilation { get; set; }
+            public SyntaxTree[] NewTrees { get; set; }
+            public SyntaxTree Tree { get; set; }
+            public SyntaxNode Root { get; set; }
+            public SemanticModel SemanticModel { get; set; }
+            public CompilationState(CSharpCompilation compilation)
+            {
+                NewTrees = compilation.SyntaxTrees.ToArray();
+                Compilation = compilation;
+            }
+
+            public void PrepIteration(int i)
+            {
+                Tree = Compilation.SyntaxTrees[i];
+                Root = Tree.GetRoot();
+            }
+
+            public void UpdateState(int i)
+            {
+                Tree = SyntaxFactory.SyntaxTree(Root, Tree.Options, Tree.FilePath);
+                NewTrees[i] = Tree;
+                Compilation = CSharpCompilation.Create(Compilation.AssemblyName, NewTrees, Compilation.References, Compilation.Options);
+                NewTrees = Compilation.SyntaxTrees.ToArray();
+                Root = Tree.GetRoot();
+                SemanticModel = Compilation.GetSemanticModel(Tree);
+            }
+
+        }
+
         private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation)
         {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+            var newTrees = compilation.SyntaxTrees.ToArray();
+            var state = new CompilationState(compilation);
 
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            for (int i = 0; i < state.Compilation.SyntaxTrees.Length; i++)
             {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
+                state.PrepIteration(i);
 
-
-                var methodCalls = root.DescendantNodes().OfType<InvocationExpressionSyntax>();
-                foreach (var ive in methodCalls)
+                var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
+                state.Root  = state.Root.TrackNodes(methodCalls);
+                state.UpdateState(i);
+                var count = 0;
+                foreach (var item in methodCalls)
                 {
-                    var info = semanticModel.GetSymbolInfo(ive);
+                    var ive = state.Root.GetCurrentNode<InvocationExpressionSyntax>(item);
+                    var info = state.SemanticModel.GetSymbolInfo(ive);
                     if (info.Symbol != null)
                     {
                         IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
                         var localDecls = new List<LocalDeclarationStatementSyntax>();
-                        var assignments = new List<AssignmentExpressionSyntax>();
+                        var assignments = new List<ExpressionStatementSyntax>();
                         var args = new List<ArgumentSyntax>();
 
                         for (int j = 0; j < methodInfo.Parameters.Count(); j++)
@@ -93,26 +126,49 @@ namespace STMExtension
                                 var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
                                 localDecls.Add(localDecl);
 
-                                //Generate new argument
-                                arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
-
                                 //Generate assignment to actual parameter from local var;
                                 var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
-                                var assigment = SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess);
+                                var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
                                 assignments.Add(assigment);
+
+                                //Generate new argument
+                                arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
                             }
 
                             args.Add(arg);
                         }
+
+                        if (localDecls.Count > 0)
+                        {
+                            count++;
+                            var originalStatement = ive.GetClosestStatementSyntax();
+                            var statement = originalStatement;
+                            state.Root = state.Root.TrackNodes(originalStatement);
+                            statement = state.Root.GetCurrentNode(originalStatement);
+
+                            state.Root = state.Root.InsertNodesBefore(statement, localDecls);
+                            statement = state.Root.GetCurrentNode(originalStatement);
+
+                            state.Root = state.Root.InsertNodesAfter(statement, assignments);
+                            statement = state.Root.GetCurrentNode(originalStatement);
+
+                            var toReplace = state.Root.GetCurrentNode(item);
+                            state.Root = state.Root.ReplaceNode(toReplace, ive.WithArgumentList(CreateArgList(args)));
+
+                            state.UpdateState(i);
+                        }
                     }
                 }
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
             }
 
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+            return state.Compilation;
         }
+
+        private static int TotalSpanLength(IEnumerable<SyntaxNode> nodes)
+        {
+            return nodes.Aggregate<SyntaxNode, int>(0, (acc, cur) => acc + cur.Span.Length);
+        }
+
 
         public struct MethodSignature
         {
