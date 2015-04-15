@@ -99,7 +99,9 @@ namespace STMExtension
                 var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
                 state.Root  = state.Root.TrackNodes(methodCalls);
                 state.UpdateState(i);
-                var count = 0;
+
+                var methods = new List<MethodDeclarationSyntax>(); 
+
                 foreach (var item in methodCalls)
                 {
                     var ive = state.Root.GetCurrentNode<InvocationExpressionSyntax>(item);
@@ -141,10 +143,11 @@ namespace STMExtension
 
                         if (localDecls.Count > 0)
                         {
-                            count++;
+                            var methodSyntax = (MethodDeclarationSyntax)methodInfo.DeclaringSyntaxReferences[0].GetSyntax();
+                            methods.Add(methodSyntax);
                             var originalStatement = ive.GetClosestStatementSyntax();
                             var statement = originalStatement;
-                            state.Root = state.Root.TrackNodes(originalStatement);
+                            state.Root = state.Root.TrackNodes(originalStatement, methodSyntax);
                             statement = state.Root.GetCurrentNode(originalStatement);
 
                             state.Root = state.Root.InsertNodesBefore(statement, localDecls);
@@ -160,6 +163,7 @@ namespace STMExtension
                         }
                     }
                 }
+
             }
 
             return state.Compilation;
