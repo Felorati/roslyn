@@ -348,6 +348,11 @@ namespace Microsoft.CodeAnalysis
                 return Failed;
             }
 
+            if(PrintErrors(compilation.GetSTMDiagnostics(), consoleOutput))
+            {
+                return Failed;
+            }
+
             EmitResult emitResult;
 
             // EDMAURER: Don't yet know if there are method body errors. don't overwrite

@@ -7,7 +7,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
-using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
 
 namespace STMExtension
 {
@@ -40,7 +39,6 @@ namespace STMExtension
 
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
-            List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
             compilation = ReplaceLocalVars(compilation);
             compilation = ReplaceAtomicRefOut(compilation);
             compilation = ReplaceMethodArguments(compilation);
@@ -48,8 +46,13 @@ namespace STMExtension
             compilation = ReplaceParameters(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceMemberAccesses(compilation);
-
+<<<<<<< HEAD
+            compilation = ReplaceParameters(compilation);
             CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
+=======
+
+            //CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
+>>>>>>> ce6e0b7604183ebe1ab622de3dd3fb433458d46e
 
             foreach (var tree in compilation.SyntaxTrees)
             {
@@ -219,10 +222,7 @@ namespace STMExtension
 
             public override int GetHashCode()
             {
-                int res = 1337;
-                res = 31 * res + type.GetHashCode();
-                res = 31 * res + Convert.ToInt32(isRefOrOut);
-                return res;
+                return this.GetHashCode();
             }
         }
 
@@ -956,11 +956,6 @@ namespace STMExtension
         private static string PreprendNameSpace(string str)
         {
             return STMNameSpace + "." + str;
-        }
-
-        private static string optinalTest(string myPar = "hej")
-        {
-            return null;
         }
     }
 }

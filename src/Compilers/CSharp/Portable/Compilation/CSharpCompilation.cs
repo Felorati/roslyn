@@ -42,6 +42,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         //
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 
+        private ImmutableArray<Diagnostic> stmDiagnositcs = new ImmutableArray<Diagnostic>();
+
         internal static readonly ParallelOptions DefaultParallelOptions = new ParallelOptions();
 
         private readonly CSharpCompilationOptions _options;
@@ -1900,6 +1902,22 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 return _declarationTable;
             }
+        }
+
+        /// <summary>
+        /// Adds the diagnostics produced during the STM extension stage of a compilation.
+        /// </summary>
+        public void AddSTMDiagnostics(ImmutableArray<Diagnostic> stmDia, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            stmDiagnositcs = stmDia;
+        }
+
+        /// <summary>
+        /// Gets the diagnostics produced during the STM extension stage of a compilation.
+        /// </summary>
+        public override ImmutableArray<Diagnostic> GetSTMDiagnostics(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return stmDiagnositcs;
         }
 
         /// <summary>
