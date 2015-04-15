@@ -5,22 +5,25 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-       
+        private static void AtomicRefTest(atomic ref int test)
+        {
+            test = 12;
+        }
 
         static void Main()
         {
             int x = 10;
-            AtomicRefTest(ref x);
+            //AtomicRefTest(ref x);
 
             int i = 13;
-            AtomicRefTest(ref i);
+            //AtomicRefTest(ref i);
 
             var test = new TestRef(1);
             var test2 = new TestRef(2,test);
             var test3 = new TestRef(3,test2);
             var test4 = new TestRef(4,test3);
 
-            Console.WriteLine(test.next.next.x);
+            Console.WriteLine(test4.next.next.x);
             int total = 20;
             System.Console.WriteLine("Original value of 'total': {0}", total);
 
@@ -30,11 +33,6 @@ namespace TestRefNamespace
             NestAtomic();
             System.Console.WriteLine("test");
             
-        }
-
-        private static void AtomicRefTest(atomic ref int test)
-        {
-            test = 12;
         }
 
         private atomic int x;

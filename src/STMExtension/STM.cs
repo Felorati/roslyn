@@ -43,9 +43,10 @@ namespace STMExtension
             compilation = ReplaceAtomicRefOut(compilation);
             compilation = ReplaceMethodArguments(compilation);
             compilation = ReplaceConstructorArguments(compilation);
+            compilation = ReplaceParameters(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceMemberAccesses(compilation);
-            compilation = ReplaceParameters(compilation);
+
             //CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
             foreach (var tree in compilation.SyntaxTrees)
@@ -469,6 +470,17 @@ namespace STMExtension
                 var tree = compilation.SyntaxTrees[i];
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
+                /*
+                var list = root.DescendantNodes().OfType<IdentifierNameSyntax>().ToList();
+                foreach (var item in list)
+                {
+                    if (item.ToString() == "test")
+                    {
+                        var typeIndo = semanticModel.GetTypeInfo(item);
+                        bool atomic = IsAtomicType(typeIndo);
+                        bool condition = ReplaceCondition(item);
+                    }
+                }*/
 
                 var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
                     .Where(iden => ReplaceCondition(iden) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
