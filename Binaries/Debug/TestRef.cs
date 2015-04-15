@@ -5,7 +5,10 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-       
+        private static void AtomicRefTest(atomic ref int test)
+        {
+            test = 12;
+        }
 
         static void Main()
         {
@@ -30,11 +33,6 @@ namespace TestRefNamespace
             NestAtomic();
             System.Console.WriteLine("test");
             
-        }
-
-        private static void AtomicRefTest(atomic ref int test)
-        {
-            //test = 12;
         }
 
         private atomic int x;
