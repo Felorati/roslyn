@@ -4248,7 +4248,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         }
                         break;
                 }
-
+                /*
                 if (atomicCount > 0 && refCount > 0)
                 {
                     mod = this.AddError(mod, ErrorCode.ERR_BadRefWithAtomic);
@@ -4261,7 +4261,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                 {
                     mod = this.AddError(mod, ErrorCode.ERR_BadParamWithAtomic);
                 }
-                else if (atomicCount > 0 && thisCount > 0)
+                else */if (atomicCount > 0 && thisCount > 0)
                 {
                     mod = this.AddError(mod, ErrorCode.ERR_BadThisWithAtomic);
                 }
