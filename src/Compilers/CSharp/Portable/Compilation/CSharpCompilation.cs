@@ -42,7 +42,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         //
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 
-        private ImmutableArray<Diagnostic> stmDiagnositcs = new ImmutableArray<Diagnostic>();
+        private ImmutableArray<Diagnostic> stmDiagnositcs = ImmutableArray.Create<Diagnostic>();
 
         internal static readonly ParallelOptions DefaultParallelOptions = new ParallelOptions();
 

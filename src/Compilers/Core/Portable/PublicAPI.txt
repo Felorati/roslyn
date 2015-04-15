@@ -1474,6 +1474,7 @@ abstract Microsoft.CodeAnalysis.Compilation.GetDeclarationDiagnostics(System.Thr
 abstract Microsoft.CodeAnalysis.Compilation.GetDiagnostics(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
 abstract Microsoft.CodeAnalysis.Compilation.GetMethodBodyDiagnostics(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
 abstract Microsoft.CodeAnalysis.Compilation.GetParseDiagnostics(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
+virtual Microsoft.CodeAnalysis.Compilation.GetSTMDiagnostics(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
 abstract Microsoft.CodeAnalysis.Compilation.GetSymbolsWithName(System.Func<string, bool> predicate, Microsoft.CodeAnalysis.SymbolFilter filter = Microsoft.CodeAnalysis.SymbolFilter.TypeAndMember, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken))
 abstract Microsoft.CodeAnalysis.Compilation.HasCodeToEmit()
 abstract Microsoft.CodeAnalysis.Compilation.IsCaseSensitive.get

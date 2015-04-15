@@ -31,7 +31,7 @@ namespace TestRefNamespace
             System.Console.WriteLine("Value after calling Add(): {0}", total);
             System.Console.WriteLine("Yey atomicvars!");
             NestAtomic();
-            System.Console.WriteLine("test");
+            System.Console.WriteLine("test2");
             
         }
 
@@ -43,15 +43,16 @@ namespace TestRefNamespace
             return "teststring: " + i;
         }
 		
+        /*
 		public void MethodOverload(ref int par, int par2)
 		{
 
 		}
-
+        /
 		public void MethodOverload(int par, atomic int par2 = 1)
 		{
 
-		}
+		}*/
         
         private TestRef GetNext()
         {

@@ -2935,7 +2935,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
             SyntaxToken identifier,
             TypeParameterListSyntax typeParameterList)
         {
-            ///Handle atomic method decl
+            //Handle atomic method decl
             if (modifiers.Any(SyntaxKind.AtomicKeyword))
             {
                 var buffer = new List<SyntaxToken>();

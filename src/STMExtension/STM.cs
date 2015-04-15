@@ -166,9 +166,56 @@ namespace STMExtension
                     }
                 }
 
+                methods = FilterOutDuplicates(methods).Select(method => state.Root.GetCurrentNode(method)).ToList();
+
+                state.Root = state.Root.ReplaceNodes(methods, (oldNode, newNode) => ReplaceAtomicRefOutParams(oldNode));
+                state.UpdateState(i);
             }
 
             return state.Compilation;
+        }
+
+        private static MethodDeclarationSyntax ReplaceAtomicRefOutParams(MethodDeclarationSyntax methodDecl)
+        {
+            var parameters = new List<ParameterSyntax>();
+            foreach (var param in methodDecl.ParameterList.Parameters)
+            {
+                var hasOutMod = param.Modifiers.Any(SyntaxKind.OutKeyword);
+                var hasRefMod = param.Modifiers.Any(SyntaxKind.RefKeyword);
+                var hasAtomicMod = param.Modifiers.Any(SyntaxKind.AtomicKeyword);
+                if (hasAtomicMod && (hasOutMod || hasRefMod))
+                {
+                    var newMods = RemoveModifiers(param.Modifiers, SyntaxKind.AtomicKeyword, SyntaxKind.RefKeyword, SyntaxKind.OutKeyword);
+                    parameters.Add(param.WithModifiers(newMods));
+                }
+                else
+                {
+                    parameters.Add(param);
+                }
+            }
+
+            var parameterList = methodDecl.ParameterList.WithParameters(SyntaxFactory.SeparatedList(parameters));
+            return methodDecl.WithParameterList(parameterList);
+        }
+
+
+        private static IEnumerable<MethodDeclarationSyntax> FilterOutDuplicates(IEnumerable<MethodDeclarationSyntax> methodDecls)
+        {
+            HashSet<string> passedValues = new HashSet<string>();
+
+            foreach (var item in methodDecls)
+            {
+                var name = item.Identifier.ToString();
+                if (passedValues.Contains(name))
+                {
+                    continue;
+                }
+                else
+                {
+                    passedValues.Add(name);
+                    yield return item;
+                }
+            }
         }
 
         private static int TotalSpanLength(IEnumerable<SyntaxNode> nodes)
@@ -912,7 +959,12 @@ namespace STMExtension
 
         private static SyntaxTokenList RemoveAtomicMod(SyntaxTokenList list)
         {
-            var newModifierList = list.Where(mod => !mod.IsKind(SyntaxKind.AtomicKeyword)).ToList();
+            return RemoveModifiers(list, SyntaxKind.AtomicKeyword);
+        }
+
+        private static SyntaxTokenList RemoveModifiers(SyntaxTokenList list, params SyntaxKind[] mods)
+        {
+            var newModifierList = list.Where(mod => !mods.Contains(mod.Kind()));
             return SyntaxFactory.TokenList(newModifierList);
         }
 
