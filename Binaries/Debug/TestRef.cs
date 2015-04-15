@@ -43,12 +43,12 @@ namespace TestRefNamespace
             return "teststring: " + i;
         }
 		
-		public void MethodOverload(int par, int par2)
+		public void MethodOverload(ref int par, int par2)
 		{
 
 		}
 
-		public void MethodOverload(ref int par, int par2)
+		public void MethodOverload(int par, int par2)
 		{
 
 		}
