@@ -13,10 +13,10 @@ namespace TestRefNamespace
         static void Main()
         {
             int x = 10;
-            //AtomicRefTest(ref x);
+            AtomicRefTest(ref x);
 
             int i = 13;
-            //AtomicRefTest(ref i);
+            AtomicRefTest(ref i);
 
             var test = new TestRef(1);
             var test2 = new TestRef(2,test);
