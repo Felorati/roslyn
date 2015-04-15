@@ -34,7 +34,7 @@ namespace TestRefNamespace
 
         private static void AtomicRefTest(atomic ref int test)
         {
-            test = 12;
+            //test = 12;
         }
 
         private atomic int x;
@@ -45,12 +45,12 @@ namespace TestRefNamespace
             return "teststring: " + i;
         }
 		
-		public void MethodOverload(int par, int par2)
+		public void MethodOverload(ref int par, int par2)
 		{
 
 		}
 
-		public void MethodOverload(ref int par, int par2)
+		public void MethodOverload(int par, int par2)
 		{
 
 		}

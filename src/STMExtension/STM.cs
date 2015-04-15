@@ -46,7 +46,7 @@ namespace STMExtension
             compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceMemberAccesses(compilation);
             compilation = ReplaceParameters(compilation);
-            //CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
+            CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
             foreach (var tree in compilation.SyntaxTrees)
             {
@@ -170,11 +170,11 @@ namespace STMExtension
         }
 
 
-        public struct MethodSignature
+        public class MethodSignature
         {
             public string name;
-            public List<string> paramTypes;
-            public MethodSignature(string name, List<string> paramTypes)
+            public List<MsParam> paramTypes;
+            public MethodSignature(string name, List<MsParam> paramTypes)
             {
                 this.name = name;
                 this.paramTypes = paramTypes;
@@ -185,9 +185,38 @@ namespace STMExtension
                 strB.Append("Methodname: " + name + ", Parameter types: ");
                 foreach (var pt in paramTypes)
                 {
-                    strB.Append(pt + " ");
+                    if(pt.isRefOrOut)
+                        strB.Append("ref/out ");
+                    strB.Append(pt.type + " ");
                 }
                 return strB.ToString();
+            }
+        }
+        public class MsParam
+        {
+            public string type;
+            public bool isRefOrOut;
+
+            public MsParam(string type, bool isRefOrOut)
+            {
+                this.type = type;
+                this.isRefOrOut = isRefOrOut;
+            }
+
+            public override bool Equals(object obj)
+            {
+                var item = obj as MsParam;
+
+                if (item == null)
+                {
+                    return false;
+                }
+                return this.type.Equals(item.type) && this.isRefOrOut.Equals(item.isRefOrOut);
+            }
+
+            public override int GetHashCode()
+            {
+                return this.GetHashCode();
             }
         }
 
@@ -209,12 +238,14 @@ namespace STMExtension
                     {
                         string mName = mDcl.Identifier.ValueText;
                         var mParams = mDcl.ParameterList.Parameters;
-                        var mTypeParams = new List<string>();
+                        var mTypeParams = new List<MsParam>();
 
                         foreach(var mPar in mParams)
                         {
                             string mParType = mPar.Type.GetTypeString();
-                            mTypeParams.Add(mParType);
+                            bool isRefOut = mPar.Modifiers.Any(SyntaxKind.OutKeyword) || mPar.Modifiers.Any(SyntaxKind.RefKeyword);
+                            MsParam msPar = new MsParam(mParType, isRefOut);
+                            mTypeParams.Add(msPar);
                         }
 
                         MethodSignature m = new MethodSignature(mName, mTypeParams);
@@ -240,7 +271,7 @@ namespace STMExtension
                         }
                     }
 
-                    //alternative method til at udregne groupedMethodSigs
+                    //alternative method to produce groupedMethodSigs
                     //var groupedMethodSigs = methodSigs.GroupBy(ms => ms.name, ms => ms, (name, ms) => new { Name = name, MethodSigs = ms }).ToList();
 
                     //Replace transactional types to original types
@@ -250,10 +281,11 @@ namespace STMExtension
                         List<MethodSignature> newMsSignatures = new List<MethodSignature>(); //replace 
                         foreach(var ms in kvpair.Value)
                         {
-                            List<string> newMsParams = new List<string>();
+                            List<MsParam> newMsParams = new List<MsParam>();
                             foreach(var msParamType in ms.paramTypes)
                             {
-                                newMsParams.Add(DetermineOriginalType(msParamType));
+                                var msParam = new MsParam(DetermineOriginalType(msParamType.type), msParamType.isRefOrOut);
+                                newMsParams.Add(msParam);
                             }
                             newMsSignatures.Add(new MethodSignature(ms.name, newMsParams));
                         }
@@ -267,7 +299,7 @@ namespace STMExtension
                         if(identicalMethodSigs.Any())
                         {
                             StringBuilder strB = new StringBuilder();
-                            strB.Append("Identical method signatures exists:");
+                            strB.Append("Identical method signatures exists in the same type:");
                             int i = 0;
                             while(i < identicalMethodSigs.Count)
                             {
