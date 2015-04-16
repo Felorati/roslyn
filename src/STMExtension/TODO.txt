@@ -1,5 +1,22 @@
 ﻿TODO:
+Ref params
+	atomic -> atomic
+	atomic -> int
+	int -> atomic
+Assign to atomic out in method body
+Replace method name
+.Value on atomic ref param
+Argument replacement for .Value params
+Figure out correct order of execution.
+
+
+DONE:
 Parsing of property and localvariable
 Generate error for atomic method declarations
 
-DONE:
+
+Problems:
+Does not have to assign to out parameter as out is removed. No error detected
+Can read from out parameter before assigning to it due to out being removed. 
+No warning when using unassigned out parameter due out being removed
+No test that ref out keyword is pressent when calling

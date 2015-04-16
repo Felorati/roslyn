@@ -41,13 +41,17 @@ namespace STMExtension
         public static void ExtendCompilation(ref CSharpCompilation compilation)
         {
             List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
-            compilation = ReplaceLocalVars(compilation);
-            compilation = ReplaceAtomicRefOut(compilation);
+
+            
             compilation = ReplaceMethodArguments(compilation);
+            compilation = ReplaceAtomicRefOut(compilation);
+            compilation = ReplaceLocalVars(compilation);
+            compilation = ReplaceMemberAccesses(compilation);
+            compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceParameters(compilation);
-            compilation = ReplaceAtomicVariableUsage(compilation);
-            compilation = ReplaceMemberAccesses(compilation);
+            
+            
 
             CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
@@ -114,36 +118,73 @@ namespace STMExtension
                         var localDecls = new List<LocalDeclarationStatementSyntax>();
                         var assignments = new List<ExpressionStatementSyntax>();
                         var args = new List<ArgumentSyntax>();
-
+                        var replace = false;
                         for (int j = 0; j < methodInfo.Parameters.Count(); j++)
                         {
                             var parameter = methodInfo.Parameters[j];
                             var arg = ive.ArgumentList.Arguments[j];
-                            if (parameter.IsAtomic && (parameter.RefKind == RefKind.Ref || parameter.RefKind == RefKind.Out))
+                            if (parameter.IsRefOrOut())
                             {
-                                //Generate local variable
-                                var typeString = parameter.Type.ToString();
-                                var type = DetermineSTMType(typeString);
-                                var initializer = SyntaxFactory.EqualsValueClause(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
-                                var identifier = SyntaxFactory.Identifier("_" + Guid.NewGuid().ToString().Replace("-", string.Empty));
-                                var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
-                                var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
-                                var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
-                                localDecls.Add(localDecl);
+                                var argTypeInfo = state.SemanticModel.GetTypeInfo(arg.Expression);
+                                if (parameter.IsAtomic)
+                                {
+                                    /*
+                                    if (IsAtomicType(argTypeInfo))
+                                    {
+                                        arg = SyntaxFactory.Argument(arg.Expression);
+                                    }
+                                    else
+                                    {
+                                        //Generate local variable
+                                        var typeString = parameter.Type.ToString();
+                                        var type = DetermineSTMType(typeString);
+                                        var initializer = SyntaxFactory.EqualsValueClause(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
+                                        var identifier = SyntaxFactory.Identifier("_" + Guid.NewGuid().ToString().Replace("-", string.Empty));
+                                        var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
+                                        var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
+                                        var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
+                                        localDecls.Add(localDecl);
 
-                                //Generate assignment to actual parameter from local var;
-                                var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
-                                var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
-                                assignments.Add(assigment);
+                                        //Generate assignment to actual parameter from local var;
+                                        var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
+                                        var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
+                                        assignments.Add(assigment);
 
-                                //Generate new argument
-                                arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
+                                        //Generate new argument
+                                        arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
+
+                                    }*/
+                                    if (IsAtomicType(argTypeInfo))
+                                    {
+                                        arg = SyntaxFactory.Argument(arg.Expression);
+                                    }
+                                    //Generate local variable
+                                    var typeString = parameter.Type.ToString();
+                                    var type = DetermineSTMType(typeString);
+                                    var initializer = SyntaxFactory.EqualsValueClause(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
+                                    var identifier = SyntaxFactory.Identifier("_" + Guid.NewGuid().ToString().Replace("-", string.Empty));
+                                    var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
+                                    var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
+                                    var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
+                                    localDecls.Add(localDecl);
+
+                                    //Generate assignment to actual parameter from local var;
+                                    var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
+                                    var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
+                                    assignments.Add(assigment);
+
+                                    //Generate new argument
+                                    arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
+
+                                    replace = true;
+                                }
                             }
+                            
 
                             args.Add(arg);
                         }
 
-                        if (localDecls.Count > 0)
+                        if (replace)
                         {
                             var methodSyntax = (MethodDeclarationSyntax)methodInfo.DeclaringSyntaxReferences[0].GetSyntax();
                             methods.Add(methodSyntax);
@@ -151,13 +192,18 @@ namespace STMExtension
                             var statement = originalStatement;
                             state.Root = state.Root.TrackNodes(originalStatement, methodSyntax);
                             statement = state.Root.GetCurrentNode(originalStatement);
+                            if (localDecls.Count > 0)
+                            {
+                                state.Root = state.Root.InsertNodesBefore(statement, localDecls);
+                                statement = state.Root.GetCurrentNode(originalStatement);
+                            }
 
-                            state.Root = state.Root.InsertNodesBefore(statement, localDecls);
-                            statement = state.Root.GetCurrentNode(originalStatement);
-
-                            state.Root = state.Root.InsertNodesAfter(statement, assignments);
-                            statement = state.Root.GetCurrentNode(originalStatement);
-
+                            if (assignments.Count > 0)
+                            {
+                                state.Root = state.Root.InsertNodesAfter(statement, assignments);
+                                statement = state.Root.GetCurrentNode(originalStatement);
+                            }
+                           
                             var toReplace = state.Root.GetCurrentNode(item);
                             state.Root = state.Root.ReplaceNode(toReplace, ive.WithArgumentList(CreateArgList(args)));
 
@@ -178,6 +224,8 @@ namespace STMExtension
         private static MethodDeclarationSyntax ReplaceAtomicRefOutParams(MethodDeclarationSyntax methodDecl)
         {
             var parameters = new List<ParameterSyntax>();
+            var outParameters = new List<ParameterSyntax>();
+
             foreach (var param in methodDecl.ParameterList.Parameters)
             {
                 var hasOutMod = param.Modifiers.Any(SyntaxKind.OutKeyword);
@@ -185,8 +233,12 @@ namespace STMExtension
                 var hasAtomicMod = param.Modifiers.Any(SyntaxKind.AtomicKeyword);
                 if (hasAtomicMod && (hasOutMod || hasRefMod))
                 {
-                    var newMods = RemoveModifiers(param.Modifiers, SyntaxKind.AtomicKeyword, SyntaxKind.RefKeyword, SyntaxKind.OutKeyword);
+                    var newMods = RemoveModifiers(param.Modifiers, SyntaxKind.RefKeyword, SyntaxKind.OutKeyword);
                     parameters.Add(param.WithModifiers(newMods));
+                    if (hasOutMod)
+                    {
+                        outParameters.Add(param);
+                    }
                 }
                 else
                 {
@@ -195,7 +247,28 @@ namespace STMExtension
             }
 
             var parameterList = methodDecl.ParameterList.WithParameters(SyntaxFactory.SeparatedList(parameters));
-            return methodDecl.WithParameterList(parameterList);
+            var newDecl = methodDecl.WithParameterList(parameterList);
+            /*
+            if (outParameters.Count > 0)
+            {
+                var statementBuffer = new List<StatementSyntax>();
+                foreach (var param in outParameters)
+                {
+                    var identifier = SyntaxFactory.IdentifierName(param.Identifier);
+                    var initializer = CreateObjectCreationExpression(DetermineSTMType(param.Type), SyntaxFactory.ArgumentList());
+                    var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, identifier, initializer));
+                    statementBuffer.Add(assigment);
+                }
+
+                foreach (var statement in methodDecl.Body.Statements)
+                {
+                    statementBuffer.Add(statement);
+                }
+
+                newDecl = newDecl.WithBody(SyntaxFactory.Block(statementBuffer));
+            }*/
+
+            return newDecl;
         }
 
 
@@ -498,7 +571,7 @@ namespace STMExtension
             {
                 var parameter = methodInfo.Parameters[i];
                 var arg = arglist.Arguments[i];
-                if (parameter.IsAtomic)
+                if (parameter.IsAtomic && !parameter.IsRefOrOut())
                 {
                     hasAtomicParam = true;
                     var typeString = parameter.Type.ToString();
@@ -975,15 +1048,7 @@ namespace STMExtension
             var buffer = new List<VariableDeclaratorSyntax>();
             foreach (var variable in aVarDcl.Variables)
             {
-                ArgumentListSyntax argList;
-                if (variable.Initializer != null)
-                {
-                    argList = CreateArgList(variable.Initializer.Value);
-                }
-                else
-                {
-                    argList = SyntaxFactory.ArgumentList();
-                }
+                var argList = variable.Initializer != null ? CreateArgList(variable.Initializer.Value) : SyntaxFactory.ArgumentList();
 
                 var initExpression = CreateObjectCreationExpression(newTypeDcl, argList);
                 var newVarDeclarator = variable.WithInitializer(SyntaxFactory.EqualsValueClause(initExpression));

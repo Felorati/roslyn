@@ -5,18 +5,21 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-        private static void AtomicRefTest(atomic ref int test)
+        private static void AtomicRefTest(atomic out int test)
         {
             test = 12;
         }
 
         static void Main()
         {
+            atomic int j = 11;
+            AtomicRefTest(out j);
+
             int x = 10;
-            AtomicRefTest(ref x);
+            AtomicRefTest(out x);
 
             int i = 13;
-            AtomicRefTest(ref i);
+            AtomicRefTest(out i);
 
             var test = new TestRef(1);
             var test2 = new TestRef(2,test);
@@ -31,7 +34,7 @@ namespace TestRefNamespace
             System.Console.WriteLine("Value after calling Add(): {0}", total);
             System.Console.WriteLine("Yey atomicvars!");
             NestAtomic();
-            System.Console.WriteLine("test2");
+            System.Console.WriteLine("test3");
             
         }
 

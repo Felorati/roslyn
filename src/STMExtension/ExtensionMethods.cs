@@ -48,5 +48,10 @@ namespace STMExtension
             }
 
         }
+
+        public static bool IsRefOrOut(this IParameterSymbol param)
+        {
+            return param.RefKind == RefKind.Out || param.RefKind == RefKind.Ref;
+        }
     }
 }
