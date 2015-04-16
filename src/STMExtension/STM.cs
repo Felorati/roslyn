@@ -42,16 +42,13 @@ namespace STMExtension
         {
             List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
 
-            
             compilation = ReplaceMethodArguments(compilation);
             compilation = ReplaceAtomicRefOut(compilation);
             compilation = ReplaceLocalVars(compilation);
-            compilation = ReplaceMemberAccesses(compilation);
-            compilation = ReplaceAtomicVariableUsage(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceParameters(compilation);
-            
-            
+            compilation = ReplaceMemberAccesses(compilation);
+            compilation = ReplaceAtomicVariableUsage(compilation);
 
             CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 

@@ -5,7 +5,7 @@ namespace TestRefNamespace
 {
     class TestRef
     {
-        private static void AtomicRefTest(atomic out int test)
+        private static void AtomicRefTest(atomic int test)
         {
             test = 12;
         }
@@ -13,13 +13,13 @@ namespace TestRefNamespace
         static void Main()
         {
             atomic int j = 11;
-            AtomicRefTest(out j);
+            //AtomicRefTest(out j);
 
             int x = 10;
-            AtomicRefTest(out x);
+            //AtomicRefTest(out x);
 
             int i = 13;
-            AtomicRefTest(out i);
+            //AtomicRefTest(out i);
 
             var test = new TestRef(1);
             var test2 = new TestRef(2,test);
