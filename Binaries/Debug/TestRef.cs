@@ -5,6 +5,10 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+        public static void OptionalParTest(atomic string par1 = "Dr. Pjuskebusk")
+        {
+
+        }
 
         public atomic int TestProp1 { get; set; }
         public atomic int TestProp2 { get; set; }
@@ -50,8 +54,7 @@ namespace TestRefNamespace
             return "teststring: " + i;
         }
 		
-        
-		public void MethodOverload(int par, atomic int par2)
+		/*public void MethodOverload(int par, atomic int par2)
 		{
 
 		}
@@ -59,7 +62,7 @@ namespace TestRefNamespace
 		public void MethodOverload(int par, int par2)
 		{
 
-		}
+		}*/
         
         private TestRef GetNext()
         {

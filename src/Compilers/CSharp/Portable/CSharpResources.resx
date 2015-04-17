@@ -4649,4 +4649,7 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
   <data name="ERR_AtomicMethodDeclaration" xml:space="preserve">
     <value>Methods can not be declared atomic</value>
   </data>
+  <data name="ERR_AtomicDefaultParameter" xml:space="preserve">
+    <value>Atomic keyword cannot be used with default parameters</value>
+  </data>
 </root>
