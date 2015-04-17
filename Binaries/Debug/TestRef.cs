@@ -5,6 +5,10 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+
+        public atomic int TestProp1 { get; set; }
+        public atomic int TestProp2 { get; set; }
+
         private static void AtomicRefTest(atomic int test)
         {
             test = 12;

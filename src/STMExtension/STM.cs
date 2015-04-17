@@ -754,10 +754,12 @@ namespace STMExtension
         {
             //Generates a manual property
             var allProperties = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.PropertyDeclaration)).Cast<PropertyDeclarationSyntax>().ToList();
-            var atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+            var atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
+            root = root.TrackNodes(atomicProperties);
 
-            foreach (var atomicProperty in atomicProperties)
+            foreach (var item in atomicProperties)
             {
+                var atomicProperty = root.GetCurrentNode(item);
                 var modifiersWithoutAtomic = RemoveAtomicMod(atomicProperty.Modifiers);
                 var backingFieldIdentifier = GenerateFieldName(atomicProperty.Identifier);
 
@@ -782,7 +784,7 @@ namespace STMExtension
 
             //Converts atomic property to atomic backing field
             allProperties = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.PropertyDeclaration)).Cast<PropertyDeclarationSyntax>().ToList();
-            atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+            atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
             root = root.ReplaceNodes(atomicProperties, (oldnode, newnode) => ReplaceProperty(oldnode));
 
             return root;
