@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
+using System.Collections.Immutable;
 
 namespace STMExtension
 {
@@ -50,13 +51,14 @@ namespace STMExtension
             compilation = ReplaceMemberAccesses(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation);
 
-            CheckMethodSignatures(compilation); //Ensure two overloaded methods does not have a TMInt and int param at the same position
+            CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
             foreach (var tree in compilation.SyntaxTrees)
             {
                 PrintDebugSource(tree);
             }
 
+            compilation.AddSTMDiagnostics(stmDiagnostics.ToImmutableArray());
         }
 
         private class CompilationState
@@ -298,10 +300,12 @@ namespace STMExtension
         {
             public string name;
             public List<MsParam> paramTypes;
-            public MethodSignature(string name, List<MsParam> paramTypes)
+            public TypeDeclarationSyntax definingType;
+            public MethodSignature(string name, List<MsParam> paramTypes, TypeDeclarationSyntax definingTypeLoc)
             {
                 this.name = name;
                 this.paramTypes = paramTypes;
+                this.definingType = definingTypeLoc;
             }
             public override string ToString()
             {
@@ -347,7 +351,7 @@ namespace STMExtension
             }
         }
 
-        private static void CheckMethodSignatures(Microsoft.CodeAnalysis.CSharp.CSharpCompilation compilation)
+        private static void CheckMethodSignatures(CSharpCompilation compilation, List<Diagnostic> stmDiagnostics)
         {
             var newTrees = compilation.SyntaxTrees.ToArray();
             foreach(var tree in newTrees)
@@ -375,7 +379,7 @@ namespace STMExtension
                             mTypeParams.Add(msPar);
                         }
 
-                        MethodSignature m = new MethodSignature(mName, mTypeParams);
+                        MethodSignature m = new MethodSignature(mName, mTypeParams, cDcl);
                         methodSigs.Add(m);
                     }
 
@@ -414,19 +418,21 @@ namespace STMExtension
                                 var msParam = new MsParam(DetermineOriginalType(msParamType.type), msParamType.isRefOrOut);
                                 newMsParams.Add(msParam);
                             }
-                            newMsSignatures.Add(new MethodSignature(ms.name, newMsParams));
+                            newMsSignatures.Add(new MethodSignature(ms.name, newMsParams, ms.definingType));
                         }
                         groupedMethodSigs[kvpair.Key] = newMsSignatures;
                     }
 
                     //Check if there are identical methodsignatures
-                    foreach(List<MethodSignature> msList in groupedMethodSigs.Values)
+                    foreach (List<MethodSignature> msList in groupedMethodSigs.Values)
                     {
                         List<MethodSignature> identicalMethodSigs = msList.Where(ms => msList.Where(ms2 => ms.name == ms2.name && ms.paramTypes.SequenceEqual(ms2.paramTypes)).Count() > 1).ToList();
                         if(identicalMethodSigs.Any())
                         {
+                            //Build 
                             StringBuilder strB = new StringBuilder();
-                            strB.Append("Identical method signatures exists in the same type:");
+                            string declaringType = identicalMethodSigs.First().definingType.Identifier.Text;
+                            strB.Append("The type " + declaringType + " cannot define identical overloaded methods (atomic int and int does not differ):");
                             int i = 0;
                             while(i < identicalMethodSigs.Count)
                             {
@@ -434,7 +440,11 @@ namespace STMExtension
                                 strB.Append("[" + i + "]: " + identicalMethodSigs[i].ToString());
                                 i++;
                             }
-                            throw new Exception(strB.ToString());
+
+                            //Build diagnostics error
+                            DiagnosticDescriptor dDes = new DiagnosticDescriptor("IdenticalMethods", "Identical method overloads not allowed", strB.ToString(), "Typing", DiagnosticSeverity.Error, true);
+                            Diagnostic dia = Diagnostic.Create(dDes, identicalMethodSigs.First().definingType.GetLocation());
+                            stmDiagnostics.Add(dia);
                         }
                     }
                 }
