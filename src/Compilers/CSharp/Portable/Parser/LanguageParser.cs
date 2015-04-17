@@ -4157,6 +4157,12 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                 }
             }
 
+            //STM check that atomic parameters does not have atomic keyword
+            if (def != null && modifiers.Any(SyntaxKind.AtomicKeyword))
+            {
+                def = this.AddError(def, ErrorCode.ERR_AtomicDefaultParameter);
+            }
+
             return _syntaxFactory.Parameter(attributes, modifiers.ToTokenList(), type, name, def);
         }
 

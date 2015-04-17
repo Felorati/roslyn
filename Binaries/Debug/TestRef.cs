@@ -5,6 +5,11 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+        public static void OptionalParTest(atomic string par1 = "Dr. Pjuskebusk")
+        {
+
+        }
+
         public atomic int TestProp1 { get; set; }
         public atomic int TestProp2 { get; set; }
 

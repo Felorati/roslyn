@@ -665,6 +665,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Atomic keyword cannot be used with default parameters.
+        /// </summary>
+        internal static string ERR_AtomicDefaultParameter {
+            get {
+                return ResourceManager.GetString("ERR_AtomicDefaultParameter", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Methods can not be declared atomic.
         /// </summary>
         internal static string ERR_AtomicMethodDeclaration {
