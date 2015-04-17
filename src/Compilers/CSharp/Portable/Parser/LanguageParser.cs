@@ -7806,21 +7806,28 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
         private StatementSyntax ParseAtomicBlock()
         {
             Debug.Assert(this.CurrentToken.Kind == SyntaxKind.AtomicKeyword);
-            var atomic = this.EatToken(SyntaxKind.AtomicKeyword);
+            var atomicKeyword = this.EatToken(SyntaxKind.AtomicKeyword);
             var statement = this.ParseEmbeddedStatement(false);
 
-            var orelses = default(SyntaxListBuilder<OrelseSyntax>);
-            if (this.CurrentToken.Kind == SyntaxKind.OrelseKeyword)
+            var orelses = SyntaxFactory.List<OrelseSyntax>();
+            var orelseBuilder = _pool.Allocate<OrelseSyntax>();
+            try
             {
-                orelses = _pool.Allocate<OrelseSyntax>();
                 while (this.CurrentToken.Kind == SyntaxKind.OrelseKeyword)
                 {
                     var clause = ParseOrelse();
-                    orelses.Add(clause);
+                    orelseBuilder.Add(clause);
                 }
+
+                orelses = orelseBuilder.ToList();
+
             }
-                     
-            return _syntaxFactory.AtomicStatement(atomic, statement,orelses);
+            finally
+            {
+                _pool.Free(orelseBuilder);
+            }
+
+            return _syntaxFactory.AtomicStatement(atomicKeyword, statement,orelses);
         }
 
         private OrelseSyntax ParseOrelse()
