@@ -34,24 +34,28 @@ namespace STMExtension
 
         public static StatementSyntax GetClosestStatementSyntax(this SyntaxNode node)
         {
-            if (node is StatementSyntax)
-            {
-                return (StatementSyntax)node;
-            }
-            else if (node.Parent != null)
-            {
-                return node.Parent.GetClosestStatementSyntax();
-            }
-            else
-            {
-                return null;
-            }
-
+            return node.AttemptToGetParent<StatementSyntax>();
         }
 
         public static bool IsRefOrOut(this IParameterSymbol param)
         {
             return param.RefKind == RefKind.Out || param.RefKind == RefKind.Ref;
+        }
+
+        public static T AttemptToGetParent<T>(this SyntaxNode iden) where T : SyntaxNode
+        {
+            if (iden is T)
+            {
+                return (T)iden;
+            }
+            else if (iden.Parent != null)
+            {
+                return AttemptToGetParent<T>(iden.Parent);
+            }
+            else
+            {
+                return null;
+            }
         }
     }
 }

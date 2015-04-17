@@ -179,7 +179,6 @@ namespace STMExtension
                                 }
                             }
                             
-
                             args.Add(arg);
                         }
 
@@ -651,7 +650,7 @@ namespace STMExtension
                 }*/
 
                 var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
-                    .Where(iden => ReplaceCondition(iden) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
+                    .Where(iden => ReplaceCondition(iden, semanticModel) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
                 root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
 
                 tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
@@ -680,11 +679,12 @@ namespace STMExtension
             return ive;
         }
 
-        private static bool ReplaceCondition(IdentifierNameSyntax iden)
+        private static bool ReplaceCondition(IdentifierNameSyntax iden, SemanticModel model)
         {
             if (iden.Parent is VariableDeclarationSyntax 
                 || iden.Parent is ParameterSyntax 
-                || iden.Parent is MemberAccessExpressionSyntax)
+                || iden.Parent is MemberAccessExpressionSyntax
+                || iden.Parent is InvocationExpressionSyntax)
             {
                 return false;
             }
@@ -715,8 +715,42 @@ namespace STMExtension
                 }
             }
 
+            var ive = iden.AttemptToGetParent<InvocationExpressionSyntax>();
+            if (ive != null)
+            {
+                var methodInfo = model.GetSymbolInfo(ive);
+                if (methodInfo.Symbol != null)
+                {
+                    var index = GetArgumentIndex(iden);
+                    var symbol = (IMethodSymbol)methodInfo.Symbol;
+                    var param = symbol.Parameters[index];
+                    if (param.IsRefOrOut())
+                    {
+                        return false;
+                    }
+                    
+                }
+            }
+
             return true;
         }
+
+        private static int GetArgumentIndex(IdentifierNameSyntax iden)
+        {
+            var arg = iden.AttemptToGetParent<ArgumentSyntax>();
+            var arglist = (ArgumentListSyntax)arg.Parent;
+            for (int i = 0; i < arglist.Arguments.Count; i++)
+            {
+                var possibleArg = arglist.Arguments[i];
+                if (arg == possibleArg)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+        
 
         private static MemberAccessExpressionSyntax ReplaceIdentifier(IdentifierNameSyntax iden)
         {

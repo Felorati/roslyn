@@ -9,7 +9,7 @@ namespace TestRefNamespace
         public atomic int TestProp1 { get; set; }
         public atomic int TestProp2 { get; set; }
 
-        private static void AtomicRefTest(atomic int test)
+        private static void AtomicRefTest(atomic out int test)
         {
             test = 12;
         }
@@ -20,7 +20,7 @@ namespace TestRefNamespace
             //AtomicRefTest(out j);
 
             int x = 10;
-            //AtomicRefTest(out x);
+            AtomicRefTest(out x);
 
             int i = 13;
             //AtomicRefTest(out i);
