@@ -143,6 +143,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         private sealed class ZeroValuedEnumConstantSymbol : SourceEnumConstantSymbol
         {
+            public override bool IsAtomic { get; protected set; }
+
             public ZeroValuedEnumConstantSymbol(
                 SourceMemberContainerTypeSymbol containingEnum,
                 EnumMemberDeclarationSyntax syntax,
@@ -160,6 +162,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         private sealed class ExplicitValuedEnumConstantSymbol : SourceEnumConstantSymbol
         {
+            public override bool IsAtomic { get; protected set; }
+
             private readonly SyntaxReference _equalsValueNodeRef;
 
             public ExplicitValuedEnumConstantSymbol(
@@ -180,6 +184,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 
         private sealed class ImplicitValuedEnumConstantSymbol : SourceEnumConstantSymbol
         {
+            public override bool IsAtomic { get; protected set; }
+
             private readonly SourceEnumConstantSymbol _otherConstant;
             private readonly uint _otherConstantOffset;
 

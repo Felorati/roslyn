@@ -13,6 +13,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
     /// </summary>
     internal class SynthesizedFieldSymbol : SynthesizedFieldSymbolBase
     {
+        public override bool IsAtomic { get; protected set; }
+
         private readonly TypeSymbol _type;
 
         public SynthesizedFieldSymbol(

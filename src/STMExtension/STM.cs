@@ -27,7 +27,6 @@ namespace STMExtension
                 var root = tree.GetRoot();
 
                 root = ReplaceProperties(root);
-                root = ReplaceFieldTypes(root); //replace atomic field types
                 root = ReplaceAtomicOrElseBlocks(root);
                 root = ReplaceRetry(root);
 
@@ -35,7 +34,7 @@ namespace STMExtension
                 SyntaxTree newTree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
                 trees[i] = newTree;
                 //Get source text after transformation (for testing and debug purposes)
-                PrintDebugSource(newTree);
+                //PrintDebugSource(newTree);
             }
         }
 
@@ -43,10 +42,11 @@ namespace STMExtension
         {
             List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
 
-            //compilation = ReplaceMethodArguments(compilation);
+            compilation = ReplaceMethodArguments(compilation);
             List<List<IdentifierNameSyntax>> skipLists;
             compilation = ReplaceAtomicRefOut(compilation, out skipLists);
             compilation = ReplaceLocalVars(compilation);
+            compilation = ReplaceFieldTypes(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceParameters(compilation);
             compilation = ReplaceMemberAccesses(compilation);
@@ -254,8 +254,12 @@ namespace STMExtension
                 {
                     return ((ILocalSymbol)symbol).IsAtomic;
                 }
-            }
 
+                if (symbol is IFieldSymbol)
+                {
+                    return ((IFieldSymbol)symbol).IsAtomic;
+                }
+            }
 
             return false;
         }
@@ -1113,12 +1117,25 @@ namespace STMExtension
             return atomicInvoNode;
         }
 
-        private static SyntaxNode ReplaceFieldTypes(SyntaxNode root)
+        private static CSharpCompilation ReplaceFieldTypes(CSharpCompilation compilation)
         {
-            //replace atomic field types
-            List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
-            var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-            return root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
+            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+
+                //replace atomic field types
+                List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
+                var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
+                root = root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
+
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+            }
+
+            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
         private static CSharpCompilation ReplaceLocalVars(CSharpCompilation compilation)

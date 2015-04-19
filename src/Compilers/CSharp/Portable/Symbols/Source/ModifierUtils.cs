@@ -197,6 +197,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                         one = DeclarationModifiers.Volatile;
                         break;
 
+                    case SyntaxKind.AtomicKeyword:
+                        one = DeclarationModifiers.None;
+                        break;
+
                     case SyntaxKind.ThisKeyword:
                     case SyntaxKind.RefKeyword:
                     case SyntaxKind.OutKeyword:

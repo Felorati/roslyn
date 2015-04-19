@@ -14,6 +14,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 {
     internal sealed class SubstitutedFieldSymbol : FieldSymbol
     {
+        public override bool IsAtomic { get; protected set; }
+
         private readonly SubstitutedNamedTypeSymbol _containingType;
         private readonly FieldSymbol _originalDefinition;
 

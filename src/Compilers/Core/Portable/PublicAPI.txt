@@ -414,6 +414,7 @@ Microsoft.CodeAnalysis.IFieldSymbol.IsReadOnly.get
 Microsoft.CodeAnalysis.IFieldSymbol.IsVolatile.get
 Microsoft.CodeAnalysis.IFieldSymbol.OriginalDefinition.get
 Microsoft.CodeAnalysis.IFieldSymbol.Type.get
+Microsoft.CodeAnalysis.IFieldSymbol.IsAtomic.get
 Microsoft.CodeAnalysis.ILabelSymbol
 Microsoft.CodeAnalysis.ILabelSymbol.ContainingMethod.get
 Microsoft.CodeAnalysis.ILocalSymbol

@@ -14,6 +14,7 @@ namespace Microsoft.CodeAnalysis.CSharp
     internal sealed class StateMachineFieldSymbol : SynthesizedFieldSymbolBase, ISynthesizedMethodBodyImplementationSymbol
     {
         private readonly TypeSymbol _type;
+        public override bool IsAtomic { get; protected set; }
 
         // -1 if the field doesn't represent a long-lived local or an awaiter.
         internal readonly int SlotIndex;

@@ -15,6 +15,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
     /// </summary>
     internal sealed class SynthesizedBackingFieldSymbol : SynthesizedFieldSymbolBase
     {
+        public override bool IsAtomic { get; protected set; }
+
         private readonly SourcePropertySymbol _property;
         private readonly bool _hasInitializer;
 

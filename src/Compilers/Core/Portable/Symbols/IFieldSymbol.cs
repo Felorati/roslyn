@@ -62,5 +62,8 @@ namespace Microsoft.CodeAnalysis
         /// source or metadata.
         /// </summary>
         new IFieldSymbol OriginalDefinition { get; }
+
+
+        bool IsAtomic { get; }
     }
 }

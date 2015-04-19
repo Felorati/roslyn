@@ -2876,7 +2876,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                             foreach (var variable in fieldSyntax.Declaration.Variables)
                             {
                                 var fieldSymbol = (modifiers & DeclarationModifiers.Fixed) == 0
-                                    ? new SourceMemberFieldSymbol(this, variable, modifiers, modifierErrors, diagnostics)
+                                    ? new SourceMemberFieldSymbol(this, variable, modifiers, modifierErrors, diagnostics, fieldSyntax.Modifiers.Any(SyntaxKind.AtomicKeyword))
                                     : new SourceFixedFieldSymbol(this, variable, modifiers, modifierErrors, diagnostics);
                                 builder.NonTypeNonIndexerMembers.Add(fieldSymbol);
 

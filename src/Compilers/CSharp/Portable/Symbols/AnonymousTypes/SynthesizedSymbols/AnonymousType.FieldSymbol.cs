@@ -15,6 +15,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private sealed class AnonymousTypeFieldSymbol : FieldSymbol
         {
             private readonly PropertySymbol _property;
+            public override bool IsAtomic { get; protected set; }
 
             public AnonymousTypeFieldSymbol(PropertySymbol property)
             {

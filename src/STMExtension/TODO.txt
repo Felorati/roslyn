@@ -24,3 +24,4 @@ No warning when using unassigned out parameter due out being removed
 No test that ref out keyword is pressent when calling
 No detection on if atomic is assigned to in method body
 No detection on wheter ref param is a variable and not a value/method
+No specific error on unintialized ref param

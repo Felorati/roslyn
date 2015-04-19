@@ -21,6 +21,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Retargeting
     /// </summary>
     internal sealed class RetargetingFieldSymbol : FieldSymbol
     {
+        public override bool IsAtomic { get; protected set; }
         /// <summary>
         /// Owning RetargetingModuleSymbol.
         /// </summary>

@@ -15,6 +15,8 @@ namespace Microsoft.CodeAnalysis.CSharp
         private readonly TypeSymbol _type;
         private readonly bool _isThis;
 
+        public override bool IsAtomic { get; protected set; }
+
         private LambdaCapturedVariable(SynthesizedContainer frame, TypeSymbol type, string fieldName, bool isThisParameter)
             : base(frame,
                    fieldName,

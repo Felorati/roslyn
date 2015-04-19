@@ -30,12 +30,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             VariableDeclaratorSyntax declarator,
             DeclarationModifiers modifiers,
             bool modifierErrors,
-            DiagnosticBag diagnostics)
+            DiagnosticBag diagnostics,
+            bool isAtomic)
             : base(containingType, declarator.Identifier.ValueText, declarator.GetReference(), declarator.Identifier.GetLocation())
         {
             _modifiers = modifiers;
             _hasInitializer = declarator.Initializer != null;
-
+            IsAtomic = isAtomic;
             this.CheckAccessibility(diagnostics);
 
             if (!modifierErrors)
@@ -43,6 +44,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
                 this.ReportModifiersDiagnostics(diagnostics);
             }
         }
+
+        public override bool IsAtomic { get; protected set; }
 
         protected sealed override DeclarationModifiers Modifiers
         {

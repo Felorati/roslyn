@@ -21,6 +21,8 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols.Metadata.PE
     /// </summary>
     internal sealed class PEFieldSymbol : FieldSymbol
     {
+        public override bool IsAtomic { get; protected set; }
+
         private readonly FieldDefinitionHandle _handle;
         private readonly string _name;
         private readonly FieldAttributes _flags;

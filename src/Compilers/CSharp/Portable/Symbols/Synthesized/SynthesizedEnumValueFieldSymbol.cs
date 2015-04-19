@@ -10,6 +10,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
     /// </summary>
     internal sealed class SynthesizedEnumValueFieldSymbol : SynthesizedFieldSymbolBase
     {
+        public override bool IsAtomic { get; protected set; }
         public SynthesizedEnumValueFieldSymbol(SourceNamedTypeSymbol containingEnum)
             : base(containingEnum, WellKnownMemberNames.EnumBackingFieldName, isPublic: true, isReadOnly: false, isStatic: false)
         {
