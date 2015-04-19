@@ -43,13 +43,14 @@ namespace STMExtension
         {
             List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
 
-            compilation = ReplaceMethodArguments(compilation);
-            compilation = ReplaceAtomicRefOut(compilation);
+            //compilation = ReplaceMethodArguments(compilation);
+            List<List<IdentifierNameSyntax>> skipLists;
+            compilation = ReplaceAtomicRefOut(compilation, out skipLists);
             compilation = ReplaceLocalVars(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceParameters(compilation);
             compilation = ReplaceMemberAccesses(compilation);
-            compilation = ReplaceAtomicVariableUsage(compilation);
+            compilation = ReplaceAtomicVariableUsage(compilation, skipLists);
 
             CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
@@ -92,13 +93,15 @@ namespace STMExtension
 
         }
 
-        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation)
+        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation, out List<List<IdentifierNameSyntax>> skipsLists)
         {
             var newTrees = compilation.SyntaxTrees.ToArray();
             var state = new CompilationState(compilation);
+            skipsLists = new List<List<IdentifierNameSyntax>>();
 
             for (int i = 0; i < state.Compilation.SyntaxTrees.Length; i++)
             {
+                var skipListBuffer = new List<string>();
                 state.PrepIteration(i);
 
                 var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
@@ -109,7 +112,7 @@ namespace STMExtension
 
                 foreach (var item in methodCalls)
                 {
-                    var ive = state.Root.GetCurrentNode<InvocationExpressionSyntax>(item);
+                    var ive = state.Root.GetCurrentNode(item);
                     var info = state.SemanticModel.GetSymbolInfo(ive);
                     if (info.Symbol != null)
                     {
@@ -124,47 +127,16 @@ namespace STMExtension
                             var arg = ive.ArgumentList.Arguments[j];
                             if (parameter.IsRefOrOut())
                             {
-                                var argTypeInfo = state.SemanticModel.GetTypeInfo(arg.Expression);
+                                var symbolInfo = state.SemanticModel.GetSymbolInfo(arg.Expression);
+                                var test = symbolInfo.Symbol.GetType().FullName;
                                 if (parameter.IsAtomic)
                                 {
-                                    /*
-                                    if (IsAtomicType(argTypeInfo))
-                                    {
-                                        arg = SyntaxFactory.Argument(arg.Expression);
-                                    }
-                                    else
-                                    {
-                                        //Generate local variable
-                                        var typeString = parameter.Type.ToString();
-                                        var type = DetermineSTMType(typeString);
-                                        var initializer = SyntaxFactory.EqualsValueClause(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
-                                        var identifier = SyntaxFactory.Identifier("_" + Guid.NewGuid().ToString().Replace("-", string.Empty));
-                                        var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
-                                        var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
-                                        var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
-                                        localDecls.Add(localDecl);
-
-                                        //Generate assignment to actual parameter from local var;
-                                        var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
-                                        var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
-                                        assignments.Add(assigment);
-
-                                        //Generate new argument
-                                        arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
-
-                                    }*/
-                                    if (IsAtomicType(argTypeInfo))
-                                    {
-                                        arg = SyntaxFactory.Argument(arg.Expression);
-                                    }
                                     //Generate local variable
                                     var typeString = parameter.Type.ToString();
                                     var type = DetermineSTMType(typeString);
-                                    var initializer = SyntaxFactory.EqualsValueClause(CreateObjectCreationExpression(type, CreateArgList(arg.Expression)));
-                                    var identifier = SyntaxFactory.Identifier("_" + Guid.NewGuid().ToString().Replace("-", string.Empty));
-                                    var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
-                                    var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
-                                    var localDecl = SyntaxFactory.LocalDeclarationStatement(varDecl);
+                                    string identifierString;
+                                    SyntaxToken identifier;
+                                    var localDecl = CreateLocalDeclaration(type, CreateObjectCreationExpression(type, CreateArgList(arg.Expression)), out identifierString, out identifier);
                                     localDecls.Add(localDecl);
 
                                     //Generate assignment to actual parameter from local var;
@@ -172,13 +144,35 @@ namespace STMExtension
                                     var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
                                     assignments.Add(assigment);
 
+                                    var argIdentifier = SyntaxFactory.IdentifierName(identifier);
+                                    skipListBuffer.Add(identifierString);
                                     //Generate new argument
-                                    arg = SyntaxFactory.Argument(SyntaxFactory.IdentifierName(identifier));
-
-                                    replace = true;
+                                    arg = arg.WithExpression(argIdentifier);
                                 }
+                                else if (IsAtomicSymbol(symbolInfo.Symbol))
+                                {
+                                    //Generate local variable
+                                    var typeString = parameter.Type.ToString();
+                                    var type = SyntaxFactory.ParseTypeName(typeString + " ");
+                                    string identifierString;
+                                    SyntaxToken identifier;
+                                    var localDecl = CreateLocalDeclaration(type, arg.Expression, out identifierString, out identifier);
+                                    localDecls.Add(localDecl);
+
+                                    //Generate assignment to actual parameter from local var;
+                                    var argIdentifier = SyntaxFactory.IdentifierName(identifier);
+                                    var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, argIdentifier));
+                                    assignments.Add(assigment);
+
+                                    skipListBuffer.Add(identifierString);
+                                    //Generate new argument
+                                    arg = arg.WithExpression(argIdentifier);
+
+                                }
+
+                                replace = true;
                             }
-                            
+
                             args.Add(arg);
                         }
 
@@ -188,6 +182,7 @@ namespace STMExtension
                             methods.Add(methodSyntax);
                             var originalStatement = ive.GetClosestStatementSyntax();
                             var statement = originalStatement;
+
                             state.Root = state.Root.TrackNodes(originalStatement, methodSyntax);
                             statement = state.Root.GetCurrentNode(originalStatement);
                             if (localDecls.Count > 0)
@@ -208,19 +203,76 @@ namespace STMExtension
                             state.UpdateState(i);
                         }
                     }
+
                 }
 
-                methods = FilterOutDuplicates(methods).Select(method => state.Root.GetCurrentNode(method)).ToList();
+                methods = FilterOutDuplicates(methods).ToList();
+                var currentMethods = methods.Select(method => state.Root.GetCurrentNode(method)).ToList();
+                state.Root = state.Root.ReplaceNodes(currentMethods, (oldNode, newNode) => ReplaceAtomicRefOutParams(oldNode));
+                state.UpdateState(i);
 
-                state.Root = state.Root.ReplaceNodes(methods, (oldNode, newNode) => ReplaceAtomicRefOutParams(oldNode));
+                currentMethods = methods.Select(method => state.Root.GetCurrentNode(method)).ToList();
+
+                var idensToSkip = new List<IdentifierNameSyntax>();
+                foreach (var methodDecl in currentMethods)
+                {
+                    var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
+                    var assignments = methodDecl.Body.Statements.OfType<ExpressionStatementSyntax>()
+                            .Where(exprStatement => exprStatement.Expression is AssignmentExpressionSyntax && ((exprStatement.Expression as AssignmentExpressionSyntax).Left is IdentifierNameSyntax))
+                            .Select(exprStatement => (exprStatement.Expression as AssignmentExpressionSyntax).Left as IdentifierNameSyntax);
+
+                    foreach (var param in outParameters)
+                    {
+
+                        var res = assignments.Where(iden => iden.ToString() == param.Identifier.ToString()).First();
+                        idensToSkip.Add(res);
+                    }
+                   
+                }
+
+                var refOutArgs = state.Root.DescendantNodes().OfType<IdentifierNameSyntax>().Where(iden => skipListBuffer.Contains(iden.Identifier.Text) && ReplaceCondition(iden,state.SemanticModel)).ToList();
+                idensToSkip.AddRange(refOutArgs);
+                state.Root = state.Root.TrackNodes(idensToSkip);
+                skipsLists.Add(idensToSkip);
+                
                 state.UpdateState(i);
             }
 
             return state.Compilation;
         }
 
+        private static bool IsAtomicSymbol(ISymbol symbol)
+        {
+            if (symbol != null)
+            {
+                if (symbol is IParameterSymbol)
+                {
+                    return ((IParameterSymbol)symbol).IsAtomic;
+                }
+
+                if (symbol is ILocalSymbol)
+                {
+                    return ((ILocalSymbol)symbol).IsAtomic;
+                }
+            }
+
+
+            return false;
+        }
+
+        private  static LocalDeclarationStatementSyntax CreateLocalDeclaration(TypeSyntax type, ExpressionSyntax initExpr, out string identifierString, out SyntaxToken identifier)
+        {
+            var initializer = SyntaxFactory.EqualsValueClause(initExpr);
+            identifierString = "_" + Guid.NewGuid().ToString().Replace("-", string.Empty);
+            identifier = SyntaxFactory.Identifier(identifierString);
+            var varDecltor = SyntaxFactory.VariableDeclarator(identifier, null, initializer);
+            var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
+            return SyntaxFactory.LocalDeclarationStatement(varDecl);
+        }
+
         private static MethodDeclarationSyntax ReplaceAtomicRefOutParams(MethodDeclarationSyntax methodDecl)
         {
+            /*
             var parameters = new List<ParameterSyntax>();
             var outParameters = new List<ParameterSyntax>();
 
@@ -244,9 +296,14 @@ namespace STMExtension
                 }
             }
 
+
+
             var parameterList = methodDecl.ParameterList.WithParameters(SyntaxFactory.SeparatedList(parameters));
             var newDecl = methodDecl.WithParameterList(parameterList);
-            /*
+            */
+
+            var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
+
             if (outParameters.Count > 0)
             {
                 var statementBuffer = new List<StatementSyntax>();
@@ -263,10 +320,10 @@ namespace STMExtension
                     statementBuffer.Add(statement);
                 }
 
-                newDecl = newDecl.WithBody(SyntaxFactory.Block(statementBuffer));
-            }*/
+                methodDecl = methodDecl.WithBody(SyntaxFactory.Block(statementBuffer));
+            }
 
-            return newDecl;
+            return methodDecl;
         }
 
 
@@ -628,15 +685,17 @@ namespace STMExtension
             return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
         }
 
-        private static CSharpCompilation ReplaceAtomicVariableUsage(CSharpCompilation compilation)
+        private static CSharpCompilation ReplaceAtomicVariableUsage(CSharpCompilation compilation, List<List<IdentifierNameSyntax>> skipLists)
         {
             var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
 
             for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
             {
+                
                 var tree = compilation.SyntaxTrees[i];
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
+                var skipList = skipLists[i].Select(iden => root.GetCurrentNode(iden)).ToList();
                 /*
                 var list = root.DescendantNodes().OfType<IdentifierNameSyntax>().ToList();
                 foreach (var item in list)
@@ -650,7 +709,7 @@ namespace STMExtension
                 }*/
 
                 var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
-                    .Where(iden => ReplaceCondition(iden, semanticModel) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
+                    .Where(iden => !skipList.Contains(iden) && ReplaceCondition(iden, semanticModel) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
                 root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
 
                 tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
@@ -689,13 +748,25 @@ namespace STMExtension
                 return false;
             }
 
-            if (iden.Parent is QualifiedNameSyntax && iden.Parent.Parent != null && 
-                (iden.Parent.Parent is VariableDeclarationSyntax 
-                || iden.Parent.Parent is ParameterSyntax 
-                || iden.Parent.Parent is MemberAccessExpressionSyntax))
+            var nonQualifiedParent = iden.AttemptToGetParentNoOfType<QualifiedNameSyntax>();
+            if (iden.Parent != nonQualifiedParent && nonQualifiedParent != null &&
+                (nonQualifiedParent is VariableDeclarationSyntax
+                || nonQualifiedParent is ParameterSyntax
+                || nonQualifiedParent is MemberAccessExpressionSyntax
+                || nonQualifiedParent is InvocationExpressionSyntax))
             {
                 return false;
             }
+
+            /*
+            if (iden.Parent is QualifiedNameSyntax && iden.Parent.Parent != null && 
+                (iden.Parent.Parent is VariableDeclarationSyntax 
+                || iden.Parent.Parent is ParameterSyntax 
+                || iden.Parent.Parent is MemberAccessExpressionSyntax
+                || iden.Parent.Parent is InvocationExpressionSyntax))
+            {
+                return false;
+            }*/
 
             if (iden.Parent is PrefixUnaryExpressionSyntax)
             {
@@ -715,6 +786,7 @@ namespace STMExtension
                 }
             }
 
+            var s = model.GetSymbolInfo(iden);
             var ive = iden.AttemptToGetParent<InvocationExpressionSyntax>();
             if (ive != null)
             {
@@ -722,13 +794,15 @@ namespace STMExtension
                 if (methodInfo.Symbol != null)
                 {
                     var index = GetArgumentIndex(iden);
-                    var symbol = (IMethodSymbol)methodInfo.Symbol;
-                    var param = symbol.Parameters[index];
-                    if (param.IsRefOrOut())
+                    if (index != -1)
                     {
-                        return false;
+                        var symbol = (IMethodSymbol)methodInfo.Symbol;
+                        var param = symbol.Parameters[index];
+                        if (param.IsRefOrOut())
+                        {
+                            return false;
+                        }
                     }
-                    
                 }
             }
 
@@ -738,6 +812,11 @@ namespace STMExtension
         private static int GetArgumentIndex(IdentifierNameSyntax iden)
         {
             var arg = iden.AttemptToGetParent<ArgumentSyntax>();
+            if (arg == null)
+            {
+                return -1;
+            }
+
             var arglist = (ArgumentListSyntax)arg.Parent;
             for (int i = 0; i < arglist.Arguments.Count; i++)
             {

@@ -509,7 +509,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             if (variableCount == 1)
             {
-                return BindVariableDeclaration(kind, isVar, variableList[0], typeSyntax, declType, alias, diagnostics, node);
+                return BindVariableDeclaration(kind, isVar, variableList[0], typeSyntax, declType, alias, diagnostics, node.Modifiers.Any(SyntaxKind.AtomicKeyword),  node);
             }
             else
             {
@@ -518,7 +518,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 int i = 0;
                 foreach (var variableDeclaratorSyntax in variableList)
                 {
-                    boundDeclarations[i++] = BindVariableDeclaration(kind, isVar, variableDeclaratorSyntax, typeSyntax, declType, alias, diagnostics);
+                    boundDeclarations[i++] = BindVariableDeclaration(kind, isVar, variableDeclaratorSyntax, typeSyntax, declType, alias, diagnostics, node.Modifiers.Any(SyntaxKind.AtomicKeyword));
                 }
 
                 return new BoundMultipleLocalDeclarations(node, boundDeclarations.AsImmutableOrNull());
@@ -652,11 +652,12 @@ namespace Microsoft.CodeAnalysis.CSharp
             TypeSymbol declTypeOpt,
             AliasSymbol aliasOpt,
             DiagnosticBag diagnostics,
+            bool isAtomic,
             CSharpSyntaxNode associatedSyntaxNode = null)
         {
             Debug.Assert(declarator != null);
 
-            return BindVariableDeclaration(LocateDeclaredVariableSymbol(declarator, typeSyntax),
+            return BindVariableDeclaration(LocateDeclaredVariableSymbol(declarator, typeSyntax, isAtomic),
                                            kind,
                                            isVar,
                                            declarator,
@@ -844,7 +845,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             return arguments;
         }
 
-        private SourceLocalSymbol LocateDeclaredVariableSymbol(VariableDeclaratorSyntax declarator, TypeSyntax typeSyntax)
+        private SourceLocalSymbol LocateDeclaredVariableSymbol(VariableDeclaratorSyntax declarator, TypeSyntax typeSyntax, bool isAtomic)
         {
             SourceLocalSymbol localSymbol = this.LookupLocal(declarator.Identifier);
 
@@ -858,6 +859,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                     typeSyntax,
                     declarator.Identifier,
                     LocalDeclarationKind.RegularVariable,
+                    isAtomic,
                     declarator.Initializer);
             }
 
@@ -2699,7 +2701,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             for (int i = 0; i < count; i++)
             {
                 var variableDeclarator = variables[i];
-                var declaration = BindVariableDeclaration(localKind, isVar, variableDeclarator, typeSyntax, declType, alias, diagnostics);
+                var declaration = BindVariableDeclaration(localKind, isVar, variableDeclarator, typeSyntax, declType, alias, diagnostics, false);
 
                 declarationArray[i] = declaration;
             }

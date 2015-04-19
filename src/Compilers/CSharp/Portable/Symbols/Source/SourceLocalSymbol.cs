@@ -49,7 +49,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 			Binder binder,
 			TypeSyntax typeSyntax,
 			SyntaxToken identifierToken,
-			LocalDeclarationKind declarationKind)
+			LocalDeclarationKind declarationKind, bool isAtomic) : base(isAtomic)
 		{
 			Debug.Assert(identifierToken.Kind() != SyntaxKind.None);
 			Debug.Assert(declarationKind != LocalDeclarationKind.None);
@@ -80,12 +80,13 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 			TypeSyntax typeSyntax,
 			SyntaxToken identifierToken,
 			LocalDeclarationKind declarationKind,
+            bool isAtomic,
 			EqualsValueClauseSyntax initializer = null)
 		{
 			Debug.Assert(declarationKind != LocalDeclarationKind.ForEachIterationVariable);
 			return (initializer == null) ?
-				new SourceLocalSymbol(containingSymbol, binder, typeSyntax, identifierToken, declarationKind) :
-				new LocalWithInitializer(containingSymbol, binder, typeSyntax, identifierToken, initializer, declarationKind);
+				new SourceLocalSymbol(containingSymbol, binder, typeSyntax, identifierToken, declarationKind, isAtomic) :
+				new LocalWithInitializer(containingSymbol, binder, typeSyntax, identifierToken, initializer, declarationKind, isAtomic);
 		}
 
 		internal override bool IsImportedFromMetadata
@@ -340,8 +341,9 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 				TypeSyntax typeSyntax,
 				SyntaxToken identifierToken,
 				EqualsValueClauseSyntax initializer,
-				LocalDeclarationKind declarationKind) :
-				base(containingSymbol, binder, typeSyntax, identifierToken, declarationKind)
+				LocalDeclarationKind declarationKind,
+                bool isAtomic) :
+				base(containingSymbol, binder, typeSyntax, identifierToken, declarationKind, isAtomic)
 			{
 				Debug.Assert(declarationKind != LocalDeclarationKind.ForEachIterationVariable);
 				Debug.Assert(initializer != null);
@@ -422,7 +424,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
 				SyntaxToken identifierToken,
 				ExpressionSyntax collection,
 				LocalDeclarationKind declarationKind) :
-					base(containingSymbol, binder, typeSyntax, identifierToken, declarationKind)
+					base(containingSymbol, binder, typeSyntax, identifierToken, declarationKind, false)
 			{
 				Debug.Assert(declarationKind == LocalDeclarationKind.ForEachIterationVariable);
 				_collection = collection;

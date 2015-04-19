@@ -1817,6 +1817,11 @@ namespace Microsoft.CodeAnalysis.CSharp.CodeGen
 
     internal sealed class DummyLocal : LocalSymbol
     {
+        public DummyLocal() : base(false)
+        {
+
+        }
+
         internal override bool IsImportedFromMetadata
         {
             get { return false; }

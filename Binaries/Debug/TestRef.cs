@@ -5,10 +5,11 @@ namespace TestRefNamespace
 {
     class TestRef
     {
+        /*
         public static void OptionalParTest(atomic string par1 = "Dr. Pjuskebusk")
         {
 
-        }
+        }*/
 
         public atomic int TestProp1 { get; set; }
         public atomic int TestProp2 { get; set; }
@@ -21,7 +22,7 @@ namespace TestRefNamespace
         static void Main()
         {
             atomic int j = 11;
-            //AtomicRefTest(out j);
+            AtomicRefTest(out j);
 
             int x = 10;
             AtomicRefTest(out x);
@@ -42,7 +43,7 @@ namespace TestRefNamespace
             System.Console.WriteLine("Value after calling Add(): {0}", total);
             System.Console.WriteLine("Yey atomicvars!");
             NestAtomic();
-            System.Console.WriteLine("test3");
+            System.Console.WriteLine("test4");
             
         }
 

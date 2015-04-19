@@ -31,5 +31,7 @@ namespace Microsoft.CodeAnalysis
 
         // TODO: Add XML doc comment.
         bool IsFunctionValue { get; }
+
+        bool IsAtomic { get; }
     }
 }

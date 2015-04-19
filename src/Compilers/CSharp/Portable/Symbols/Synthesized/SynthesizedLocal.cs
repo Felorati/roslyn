@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
             bool isPinned = false,
             RefKind refKind = RefKind.None,
             [CallerLineNumber]int createdAtLineNumber = 0,
-            [CallerFilePath]string createdAtFilePath = null)
+            [CallerFilePath]string createdAtFilePath = null) : base(false)
         {
             Debug.Assert(type.SpecialType != SpecialType.System_Void);
             Debug.Assert(!kind.IsLongLived() || syntaxOpt != null);

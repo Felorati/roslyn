@@ -422,6 +422,7 @@ Microsoft.CodeAnalysis.ILocalSymbol.HasConstantValue.get
 Microsoft.CodeAnalysis.ILocalSymbol.IsConst.get
 Microsoft.CodeAnalysis.ILocalSymbol.IsFunctionValue.get
 Microsoft.CodeAnalysis.ILocalSymbol.Type.get
+Microsoft.CodeAnalysis.ILocalSymbol.IsAtomic.get
 Microsoft.CodeAnalysis.IMethodSymbol
 Microsoft.CodeAnalysis.IMethodSymbol.Arity.get
 Microsoft.CodeAnalysis.IMethodSymbol.AssociatedAnonymousDelegate.get

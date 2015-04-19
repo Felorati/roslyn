@@ -33,7 +33,7 @@ namespace Microsoft.CodeAnalysis.CSharp
             {
                 var localSymbol = MakeLocal(declaration,
                                             variable,
-                                            LocalDeclarationKind.ForInitializerVariable);
+                                            LocalDeclarationKind.ForInitializerVariable, false);
                 locals.Add(localSymbol);
             }
 

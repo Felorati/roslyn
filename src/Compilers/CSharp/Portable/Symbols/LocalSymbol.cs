@@ -11,9 +11,12 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
     /// </summary>
     internal abstract class LocalSymbol : Symbol, ILocalSymbolInternal
     {
-        protected LocalSymbol()
+        protected LocalSymbol(bool isAtomic)
         {
+            IsAtomic = isAtomic;
         }
+
+        public virtual bool IsAtomic { get; private set; }
 
         internal abstract LocalDeclarationKind DeclarationKind
         {

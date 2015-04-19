@@ -12,7 +12,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Symbols
         private readonly TypeSymbol _type;
         private readonly Symbol _containingSymbol;
 
-        public TypeSubstitutedLocalSymbol(LocalSymbol originalVariable, TypeSymbol type, Symbol containingSymbol)
+        public TypeSubstitutedLocalSymbol(LocalSymbol originalVariable, TypeSymbol type, Symbol containingSymbol) : base(false)
         {
             Debug.Assert(originalVariable != null);
             Debug.Assert(type != null);
