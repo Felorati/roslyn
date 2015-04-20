@@ -746,7 +746,7 @@ namespace STMExtension
         {
             if (iden.Parent is VariableDeclarationSyntax 
                 || iden.Parent is ParameterSyntax 
-                || iden.Parent is MemberAccessExpressionSyntax
+                || (iden.Parent is MemberAccessExpressionSyntax && (iden.Parent as MemberAccessExpressionSyntax).Name == iden)  
                 || iden.Parent is InvocationExpressionSyntax)
             {
                 return false;
