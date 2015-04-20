@@ -49,8 +49,8 @@ namespace STMExtension
             compilation = ReplaceFieldTypes(compilation);
             compilation = ReplaceConstructorArguments(compilation);
             compilation = ReplaceParameters(compilation);
-            compilation = ReplaceMemberAccesses(compilation);
             compilation = ReplaceAtomicVariableUsage(compilation, skipLists);
+            compilation = ReplaceMemberAccesses(compilation);
 
             CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods does not have a TMInt and int param at the same position
 
@@ -744,6 +744,7 @@ namespace STMExtension
 
         private static bool ReplaceCondition(IdentifierNameSyntax iden, SemanticModel model)
         {
+
             if (iden.Parent is VariableDeclarationSyntax 
                 || iden.Parent is ParameterSyntax 
                 || (iden.Parent is MemberAccessExpressionSyntax && (iden.Parent as MemberAccessExpressionSyntax).Name == iden)  
@@ -756,7 +757,7 @@ namespace STMExtension
             if (iden.Parent != nonQualifiedParent && nonQualifiedParent != null &&
                 (nonQualifiedParent is VariableDeclarationSyntax
                 || nonQualifiedParent is ParameterSyntax
-                || nonQualifiedParent is MemberAccessExpressionSyntax
+                || (nonQualifiedParent is MemberAccessExpressionSyntax && (nonQualifiedParent as MemberAccessExpressionSyntax).Name == iden)
                 || nonQualifiedParent is InvocationExpressionSyntax))
             {
                 return false;
@@ -790,7 +791,6 @@ namespace STMExtension
                 }
             }
 
-            var s = model.GetSymbolInfo(iden);
             var ive = iden.AttemptToGetParent<InvocationExpressionSyntax>();
             if (ive != null)
             {
