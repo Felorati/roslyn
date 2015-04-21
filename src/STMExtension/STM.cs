@@ -1222,15 +1222,3 @@ namespace STMExtension
         }
     }
 }
-
-//***Hello world invocation example (replaces atomic with hello world)***
-//var arg = SyntaxFactory.Argument(SyntaxFactory.LiteralExpression(
-//    SyntaxKind.StringLiteralExpression,
-//    SyntaxFactory.Literal("hello")));
-
-//var newNode = SyntaxFactory.ExpressionStatement(
-//SyntaxFactory.InvocationExpression(
-//    SyntaxFactory.ParseName("System.Console.WriteLine"),
-//    SyntaxFactory.ArgumentList(
-//        arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(
-//            new List<ArgumentSyntax>() { arg }))));
