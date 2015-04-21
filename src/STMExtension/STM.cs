@@ -744,73 +744,71 @@ namespace STMExtension
 
         private static bool ReplaceCondition(IdentifierNameSyntax iden, SemanticModel model)
         {
-
-            if (iden.Parent is VariableDeclarationSyntax 
-                || iden.Parent is ParameterSyntax 
-                || (iden.Parent is MemberAccessExpressionSyntax && (iden.Parent as MemberAccessExpressionSyntax).Name == iden)  
-                || iden.Parent is InvocationExpressionSyntax)
+            var symbolInfo = model.GetSymbolInfo(iden);
+            if (symbolInfo.Symbol != null)
             {
-                return false;
-            }
-
-            var nonQualifiedParent = iden.AttemptToGetParentNoOfType<QualifiedNameSyntax>();
-            if (iden.Parent != nonQualifiedParent && nonQualifiedParent != null &&
-                (nonQualifiedParent is VariableDeclarationSyntax
-                || nonQualifiedParent is ParameterSyntax
-                || (nonQualifiedParent is MemberAccessExpressionSyntax && (nonQualifiedParent as MemberAccessExpressionSyntax).Name == iden)
-                || nonQualifiedParent is InvocationExpressionSyntax))
-            {
-                return false;
-            }
-
-            /*
-            if (iden.Parent is QualifiedNameSyntax && iden.Parent.Parent != null && 
-                (iden.Parent.Parent is VariableDeclarationSyntax 
-                || iden.Parent.Parent is ParameterSyntax 
-                || iden.Parent.Parent is MemberAccessExpressionSyntax
-                || iden.Parent.Parent is InvocationExpressionSyntax))
-            {
-                return false;
-            }*/
-
-            if (iden.Parent is PrefixUnaryExpressionSyntax)
-            {
-                var parent = iden.Parent as PrefixUnaryExpressionSyntax;
-                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken) || parent.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
+                if (symbolInfo.Symbol is IParameterSymbol || symbolInfo.Symbol is ILocalSymbol || symbolInfo.Symbol is IFieldSymbol)
                 {
-                    return false;
-                }
-            }
-
-            if (iden.Parent is PostfixUnaryExpressionSyntax)
-            {
-                var parent = iden.Parent as PostfixUnaryExpressionSyntax;
-                if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken) || parent.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
-                {
-                    return false;
-                }
-            }
-
-            var ive = iden.AttemptToGetParent<InvocationExpressionSyntax>();
-            if (ive != null)
-            {
-                var methodInfo = model.GetSymbolInfo(ive);
-                if (methodInfo.Symbol != null)
-                {
-                    var index = GetArgumentIndex(iden);
-                    if (index != -1)
+                    if (iden.Parent is VariableDeclarationSyntax
+                    || iden.Parent is ParameterSyntax
+                    || (iden.Parent is MemberAccessExpressionSyntax && (iden.Parent as MemberAccessExpressionSyntax).Name == iden)
+                    || iden.Parent is InvocationExpressionSyntax)
                     {
-                        var symbol = (IMethodSymbol)methodInfo.Symbol;
-                        var param = symbol.Parameters[index];
-                        if (param.IsRefOrOut())
+                        return false;
+                    }
+
+                    var nonQualifiedParent = iden.AttemptToGetParentNoOfType<QualifiedNameSyntax>();
+                    if (iden.Parent != nonQualifiedParent && nonQualifiedParent != null &&
+                        (nonQualifiedParent is VariableDeclarationSyntax
+                        || nonQualifiedParent is ParameterSyntax
+                        || (nonQualifiedParent is MemberAccessExpressionSyntax && (nonQualifiedParent as MemberAccessExpressionSyntax).Name == iden)
+                        || nonQualifiedParent is InvocationExpressionSyntax))
+                    {
+                        return false;
+                    }
+
+                    if (iden.Parent is PrefixUnaryExpressionSyntax)
+                    {
+                        var parent = iden.Parent as PrefixUnaryExpressionSyntax;
+                        if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken) || parent.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
                         {
                             return false;
                         }
                     }
+
+                    if (iden.Parent is PostfixUnaryExpressionSyntax)
+                    {
+                        var parent = iden.Parent as PostfixUnaryExpressionSyntax;
+                        if (parent.OperatorToken.IsKind(SyntaxKind.PlusPlusToken) || parent.OperatorToken.IsKind(SyntaxKind.MinusMinusToken))
+                        {
+                            return false;
+                        }
+                    }
+
+                    var ive = iden.AttemptToGetParent<InvocationExpressionSyntax>();
+                    if (ive != null)
+                    {
+                        var methodInfo = model.GetSymbolInfo(ive);
+                        if (methodInfo.Symbol != null)
+                        {
+                            var index = GetArgumentIndex(iden);
+                            if (index != -1)
+                            {
+                                var symbol = (IMethodSymbol)methodInfo.Symbol;
+                                var param = symbol.Parameters[index];
+                                if (param.IsRefOrOut())
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+
+                    return true;
                 }
             }
 
-            return true;
+            return false;
         }
 
         private static int GetArgumentIndex(IdentifierNameSyntax iden)
