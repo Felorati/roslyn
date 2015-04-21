@@ -44,7 +44,7 @@ namespace STMExtension
 
             compilation = ReplaceMethodArguments(compilation);
             List<List<IdentifierNameSyntax>> skipLists;
-            compilation = ReplaceAtomicRefOut(compilation, out skipLists);
+            compilation = ReplaceAtomicRefOut(compilation, stmDiagnostics, out skipLists);
             compilation = ReplaceLocalVars(compilation);
             compilation = ReplaceFieldTypes(compilation);
             compilation = ReplaceConstructorArguments(compilation);
@@ -93,7 +93,7 @@ namespace STMExtension
 
         }
 
-        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation, out List<List<IdentifierNameSyntax>> skipsLists)
+        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation, List<Diagnostic> diagnostics, out List<List<IdentifierNameSyntax>> skipsLists)
         {
             var newTrees = compilation.SyntaxTrees.ToArray();
             var state = new CompilationState(compilation);
@@ -128,7 +128,13 @@ namespace STMExtension
                             if (parameter.IsRefOrOut())
                             {
                                 var symbolInfo = state.SemanticModel.GetSymbolInfo(arg.Expression);
-                                var test = symbolInfo.Symbol.GetType().FullName;
+                                if ((parameter.IsAtomic || IsAtomicSymbol(symbolInfo.Symbol)) && !IsVariableSymbol(symbolInfo.Symbol))
+                                {
+                                    DiagnosticDescriptor dDes = new DiagnosticDescriptor("Invalid ref/out argument", "Invalid ref/out argument", "ref/out arguments must be either a field, local variable or parameter", "Typing", DiagnosticSeverity.Error, true);
+                                    Diagnostic dia = Diagnostic.Create(dDes, arg.GetLocation());
+                                    diagnostics.Add(dia);
+                                }
+
                                 if (parameter.IsAtomic)
                                 {
                                     //Generate local variable
@@ -239,6 +245,16 @@ namespace STMExtension
             }
 
             return state.Compilation;
+        }
+
+        private static bool IsVariableSymbol(ISymbol symbol)
+        {
+            if (symbol != null)
+            {
+                return symbol is IParameterSymbol || symbol is ILocalSymbol || symbol is IFieldSymbol;
+            }
+
+            return false;
         }
 
         private static bool IsAtomicSymbol(ISymbol symbol)
