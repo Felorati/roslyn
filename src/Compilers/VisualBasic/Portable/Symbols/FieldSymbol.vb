@@ -38,6 +38,14 @@ Namespace Microsoft.CodeAnalysis.VisualBasic.Symbols
             End Get
         End Property
 
+        Public ReadOnly Property IsAtomic As Boolean
+            Get
+                ' Default implements returns Me.
+                Return True
+            End Get
+        End Property
+        'public bool IsAtomic { get; }
+
         Protected NotOverridable Overrides ReadOnly Property OriginalSymbolDefinition As Symbol
             Get
                 Return Me.OriginalDefinition

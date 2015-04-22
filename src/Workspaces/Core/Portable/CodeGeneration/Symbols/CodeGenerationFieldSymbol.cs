@@ -13,6 +13,7 @@ namespace Microsoft.CodeAnalysis.CodeGeneration
         public ITypeSymbol Type { get; private set; }
         public object ConstantValue { get; private set; }
         public bool HasConstantValue { get; private set; }
+        public bool IsAtomic { get; }
 
         public CodeGenerationFieldSymbol(
             INamedTypeSymbol containingType,

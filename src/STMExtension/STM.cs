@@ -9,8 +9,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
 using System.Collections.Immutable;
-//using Microsoft.CodeAnalysis.Formatting;
-//using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.Formatting;
+using Microsoft.CodeAnalysis.MSBuild;
 
 namespace STMExtension
 {
@@ -20,9 +20,6 @@ namespace STMExtension
 
         public static void Extend(ref SyntaxTree[] trees)
         {
-            //Cleaning debug and testing file upon each compilation
-            File.WriteAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", "");
-
             for (int i = 0; i < trees.Length; i++)
             {
                 var tree = trees[i];
@@ -54,10 +51,13 @@ namespace STMExtension
             compilation = ReplaceAtomicVariableUsage(compilation, skipLists);
             compilation = ReplaceMemberAccesses(compilation);
 
-            CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods does not fx. have a TMInt and int param at the same position
+            CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods fx. does not have a TMInt and int param at the same position
 
             if (stmIntermediateOutputPath != null)
             {
+                if (File.Exists(stmIntermediateOutputPath)) //Cleaning file before appending to it
+                    File.WriteAllText(stmIntermediateOutputPath, "");
+
                 foreach (var tree in compilation.SyntaxTrees)
                 {
                     PrintDebugSource(tree, stmIntermediateOutputPath);
@@ -887,11 +887,8 @@ namespace STMExtension
 
         private static void PrintDebugSource(SyntaxTree tree, string stmIntermediateOutputPath)
         {
-            /*var root = tree.GetRoot();
-            var workspace = MSBuildWorkspace.Create();
-            var formattedRoot = Formatter.Format(root, workspace);
-            var textAfter = formattedRoot.GetText().ToString();*/
-            var textAfter = tree.GetText().ToString();
+            var formattedRoot = tree.GetRoot().NormalizeWhitespace();
+            var textAfter = formattedRoot.GetText().ToString();
             var appendText = "File: " + tree.FilePath + "\n" + textAfter + "\n\n";
             File.AppendAllText(stmIntermediateOutputPath, appendText);
         }

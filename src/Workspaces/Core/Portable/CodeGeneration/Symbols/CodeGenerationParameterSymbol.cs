@@ -18,6 +18,7 @@ namespace Microsoft.CodeAnalysis.CodeGeneration
 
         public bool HasExplicitDefaultValue { get; private set; }
         public object ExplicitDefaultValue { get; private set; }
+        public bool IsAtomic { get; }
 
         public CodeGenerationParameterSymbol(
             INamedTypeSymbol containingType,
