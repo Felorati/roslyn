@@ -148,7 +148,7 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             //Roslyn tree modification
             STM.Extend(ref trees);
-            
+
             var compilation = CSharpCompilation.Create(
                 Arguments.CompilationName,
                 trees.WhereNotNull(),
@@ -169,7 +169,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
                 "Spring.Threading.dll"))); //TODO: Maybe reference this in another way
 
-            STM.ExtendCompilation(ref compWithRef);
+            STM.ExtendCompilation(ref compWithRef, Arguments.STMIntermidiateOutputFilePath);
 
             return compWithRef;
         }

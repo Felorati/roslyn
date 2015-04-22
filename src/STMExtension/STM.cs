@@ -9,6 +9,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
 using System.Collections.Immutable;
+//using Microsoft.CodeAnalysis.Formatting;
+//using Microsoft.CodeAnalysis.MSBuild;
 
 namespace STMExtension
 {
@@ -38,7 +40,7 @@ namespace STMExtension
             }
         }
 
-        public static void ExtendCompilation(ref CSharpCompilation compilation)
+        public static void ExtendCompilation(ref CSharpCompilation compilation, string stmIntermediateOutputPath)
         {
             List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
 
@@ -52,11 +54,14 @@ namespace STMExtension
             compilation = ReplaceAtomicVariableUsage(compilation, skipLists);
             compilation = ReplaceMemberAccesses(compilation);
 
-            CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods does not have a TMInt and int param at the same position
+            CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods does not fx. have a TMInt and int param at the same position
 
-            foreach (var tree in compilation.SyntaxTrees)
+            if (stmIntermediateOutputPath != null)
             {
-                PrintDebugSource(tree);
+                foreach (var tree in compilation.SyntaxTrees)
+                {
+                    PrintDebugSource(tree, stmIntermediateOutputPath);
+                }
             }
 
             compilation.AddSTMDiagnostics(stmDiagnostics.ToImmutableArray());
@@ -880,15 +885,15 @@ namespace STMExtension
             return isAtomic;
         }
 
-
-
-
-
-        private static void PrintDebugSource(SyntaxTree tree)
+        private static void PrintDebugSource(SyntaxTree tree, string stmIntermediateOutputPath)
         {
+            /*var root = tree.GetRoot();
+            var workspace = MSBuildWorkspace.Create();
+            var formattedRoot = Formatter.Format(root, workspace);
+            var textAfter = formattedRoot.GetText().ToString();*/
             var textAfter = tree.GetText().ToString();
             var appendText = "File: " + tree.FilePath + "\n" + textAfter + "\n\n";
-            File.AppendAllText(AppDomain.CurrentDomain.BaseDirectory + "TextAfterCompilation.txt", appendText);
+            File.AppendAllText(stmIntermediateOutputPath, appendText);
         }
 
         private static SyntaxNode ReplaceProperties(SyntaxNode root)

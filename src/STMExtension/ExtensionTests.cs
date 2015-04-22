@@ -75,17 +75,17 @@ namespace STMExtension
 
         private CmdRes RunCsc(string argStr)
         {
-            //Other dir obtainings
+            //Other dir obtainings (gives only current dir)
             //string rootPath = System.AppDomain.CurrentDomain.BaseDirectory;
             //string path = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase); //source http://msdn.microsoft.com/en-us/library/aa457089.aspx
             //string executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
-            //Cannot use one of the three methods above because the reference ExtensionsTests bin folder, and not the out Binaries/Debug folder where csc.exe and TestRef.cs is in.
-            string debugPath = Path.GetDirectoryName(Path.GetDirectoryName(Directory.GetCurrentDirectory()));
-            DirectoryInfo dirI = new DirectoryInfo(debugPath);
-            dirI = dirI.Parent.Parent;
+            //Have to navigate to Binaries/Debug folder where csc.exe and TestRef.cs is in. (different from currentdir which is STMExtension\Debug\Bin)
+            string currentDir = AppDomain.CurrentDomain.BaseDirectory;
+            var dirI = new DirectoryInfo(currentDir);
+            dirI = dirI.Parent.Parent.Parent.Parent;
+     
             string binariesDebugPath = Path.Combine(dirI.FullName, "Binaries" + Path.DirectorySeparatorChar + "Debug");
-
             string cscPath = Path.Combine(binariesDebugPath, "csc.exe");
             return RunCmd(cscPath + " " + argStr);
         }

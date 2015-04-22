@@ -100,6 +100,7 @@ namespace Microsoft.CodeAnalysis.CSharp
                 CultureInfo preferredUILang = null;
                 string touchedFilesPath = null;
                 var sqmSessionGuid = Guid.Empty;
+                string STMIntermidiateOutputFilePath = null;
 
                 // Process ruleset files first so that diagnostic severity settings specified on the command line via
                 // /nowarn and /warnaserror can override diagnostic severity settings specified in the ruleset file.
@@ -916,6 +917,21 @@ namespace Microsoft.CodeAnalysis.CSharp
 
                                 additionalFiles.AddRange(ParseAdditionalFileArgument(value, baseDirectory, diagnostics));
                                 continue;
+
+                            case "stmiout": //STM extension argument (used for testing)
+                                if (string.IsNullOrWhiteSpace(value))
+                                {
+                                    AddDiagnostic(diagnostics, ErrorCode.ERR_NoFileSpec, arg);
+                                }
+                                else
+                                {
+                                    string outFn;
+                                    string outDir;
+                                    ParseOutputFile(value, diagnostics, baseDirectory, out outFn, out outDir);
+                                    string stmInterPath = Path.Combine(outDir, outFn);
+                                    STMIntermidiateOutputFilePath = stmInterPath;
+                                }
+                                continue;
                         }
                     }
 
@@ -1064,7 +1080,8 @@ namespace Microsoft.CodeAnalysis.CSharp
                     PrintFullPaths = printFullPaths,
                     ShouldIncludeErrorEndLocation = errorEndLocation,
                     PreferredUILang = preferredUILang,
-                    SqmSessionGuid = sqmSessionGuid
+                    SqmSessionGuid = sqmSessionGuid,
+                    STMIntermidiateOutputFilePath = STMIntermidiateOutputFilePath
                 };
             }
         }

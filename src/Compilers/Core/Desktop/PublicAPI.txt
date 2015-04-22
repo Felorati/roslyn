@@ -28,6 +28,7 @@ Microsoft.CodeAnalysis.CommandLineArguments.MetadataReferences.get
 Microsoft.CodeAnalysis.CommandLineArguments.NoWin32Manifest.get
 Microsoft.CodeAnalysis.CommandLineArguments.OutputDirectory.get
 Microsoft.CodeAnalysis.CommandLineArguments.OutputFileName.get
+Microsoft.CodeAnalysis.CommandLineArguments.STMIntermidiateOutputFilePath.get
 Microsoft.CodeAnalysis.CommandLineArguments.ParseOptions.get
 Microsoft.CodeAnalysis.CommandLineArguments.PdbPath.get
 Microsoft.CodeAnalysis.CommandLineArguments.PreferredUILang.get

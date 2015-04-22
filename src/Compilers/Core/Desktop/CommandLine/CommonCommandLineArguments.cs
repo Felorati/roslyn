@@ -66,6 +66,11 @@ namespace Microsoft.CodeAnalysis
         public string OutputFileName { get; internal set; }
 
         /// <summary>
+        /// Name of the output file or null if not specified.
+        /// </summary>
+        public string STMIntermidiateOutputFilePath { get; internal set; }
+
+        /// <summary>
         /// Path of the PDB file or null if same as output binary path with .pdb extension.
         /// </summary>
         public string PdbPath { get; internal set; }
