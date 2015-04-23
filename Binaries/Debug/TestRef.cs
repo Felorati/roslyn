@@ -12,7 +12,7 @@ namespace TestRefNamespace
         }*/
 
         public atomic int TestProp1 { get; set; }
-        public atomic int TestProp2 { get; set; }
+        public atomic string TestProp2 { get; set; }
 
         private static void AtomicRefTest(atomic out int test)
         {
