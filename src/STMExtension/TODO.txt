@@ -1,11 +1,6 @@
 ﻿TODO:
-Ref params
-	atomic -> atomic
-	atomic -> int
-	int -> atomic
-Assign to atomic out in method body
-Argument replacement for .Value params
-Figure out correct order of execution.
+Error when retry outside atomic
+Clean up member access replacment
 
 
 DONE:
@@ -14,6 +9,13 @@ Generate error for atomic method declarations
 DONT remove parameter mods
 Replace method name
 .Value on atomic ref param
+Ref params
+	atomic -> atomic
+	atomic -> int
+	int -> atomic
+Assign to atomic out in method body
+Argument replacement for .Value params
+Figure out correct order of execution.
 
 
 

@@ -133,6 +133,7 @@ namespace STMExtension
                             if (parameter.IsRefOrOut())
                             {
                                 var symbolInfo = state.SemanticModel.GetSymbolInfo(arg.Expression);
+                                var isAtomicSymbol = IsAtomicSymbol(symbolInfo.Symbol);
                                 if ((parameter.IsAtomic || IsAtomicSymbol(symbolInfo.Symbol)) && !IsVariableSymbol(symbolInfo.Symbol))
                                 {
                                     DiagnosticDescriptor dDes = new DiagnosticDescriptor("Invalid ref/out argument", "Invalid ref/out argument", "ref/out arguments must be either a field, local variable or parameter", "Typing", DiagnosticSeverity.Error, true);
@@ -142,25 +143,30 @@ namespace STMExtension
 
                                 if (parameter.IsAtomic)
                                 {
-                                    //Generate local variable
-                                    var typeString = parameter.Type.ToString();
-                                    var type = DetermineSTMType(typeString);
-                                    string identifierString;
-                                    SyntaxToken identifier;
-                                    var localDecl = CreateLocalDeclaration(type, CreateObjectCreationExpression(type, CreateArgList(arg.Expression)), out identifierString, out identifier);
-                                    localDecls.Add(localDecl);
+                                    if (!isAtomicSymbol)
+                                    {
+                                        //Generate local variable
+                                        var typeString = parameter.Type.ToString();
+                                        var type = DetermineSTMType(typeString);
+                                        string identifierString;
+                                        SyntaxToken identifier;
+                                        var localDecl = CreateLocalDeclaration(type, CreateObjectCreationExpression(type, CreateArgList(arg.Expression)), out identifierString, out identifier);
+                                        localDecls.Add(localDecl);
 
-                                    //Generate assignment to actual parameter from local var;
-                                    var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
-                                    var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
-                                    assignments.Add(assigment);
+                                        //Generate assignment to actual parameter from local var;
+                                        var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
+                                        var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
+                                        assignments.Add(assigment);
 
-                                    var argIdentifier = SyntaxFactory.IdentifierName(identifier);
-                                    skipListBuffer.Add(identifierString);
-                                    //Generate new argument
-                                    arg = arg.WithExpression(argIdentifier);
+                                        var argIdentifier = SyntaxFactory.IdentifierName(identifier);
+                                        skipListBuffer.Add(identifierString);
+                                        //Generate new argument
+                                        arg = arg.WithExpression(argIdentifier);
+                                        replace = true;
+                                    }
+                                    
                                 }
-                                else if (IsAtomicSymbol(symbolInfo.Symbol))
+                                else if (isAtomicSymbol)
                                 {
                                     //Generate local variable
                                     var typeString = parameter.Type.ToString();
@@ -178,10 +184,10 @@ namespace STMExtension
                                     skipListBuffer.Add(identifierString);
                                     //Generate new argument
                                     arg = arg.WithExpression(argIdentifier);
+                                    replace = true;
 
                                 }
 
-                                replace = true;
                             }
 
                             args.Add(arg);
