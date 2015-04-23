@@ -889,8 +889,8 @@ namespace STMExtension
         {
             var formattedRoot = tree.GetRoot().NormalizeWhitespace();
             var textAfter = formattedRoot.GetText().ToString();
-            var appendText = "File: " + tree.FilePath + "\n" + textAfter + "\n\n";
-            File.AppendAllText(stmIntermediateOutputPath, appendText);
+            //var appendText = "File: " + tree.FilePath + "\n" + textAfter + "\n\n";
+            File.AppendAllText(stmIntermediateOutputPath, textAfter);
         }
 
         private static SyntaxNode ReplaceProperties(SyntaxNode root)

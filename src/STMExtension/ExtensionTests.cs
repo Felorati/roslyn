@@ -22,6 +22,10 @@ namespace STMExtension
                 ExtensionTests.exePath = exePath;
                 Directory.CreateDirectory(ExtensionTests.testFilesFolderName);
             }
+            else
+            {
+                Array.ForEach(Directory.GetFiles(ExtensionTests.testFilesFolderName), File.Delete);
+            }
         }
     }
 
@@ -30,14 +34,15 @@ namespace STMExtension
     {
         public static int csFilesCount;
         public static string exePath;
-        public static string currentCsFile;
+        public static string currentCsFile; //without extension
+        public static string currentCompiledCsFile; //with extension
         readonly public static string testFilesFolderName = "CSTestFiles";
 
         [SetUp]
         public void SetupTestFile()
         {
             csFilesCount++;
-            currentCsFile = testFilesFolderName + Path.DirectorySeparatorChar + "TestFile" + csFilesCount + ".cs";
+            currentCsFile = testFilesFolderName + Path.DirectorySeparatorChar + "TestFile" + csFilesCount; //Without extension ie. ".cs"
         }
 
         [TestFixture]
@@ -75,11 +80,6 @@ namespace STMExtension
 
         private CmdRes RunCsc(string argStr)
         {
-            //Other dir obtainings (gives only current dir)
-            //string rootPath = System.AppDomain.CurrentDomain.BaseDirectory;
-            //string path = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase); //source http://msdn.microsoft.com/en-us/library/aa457089.aspx
-            //string executableLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
             //Have to navigate to Binaries/Debug folder where csc.exe and TestRef.cs is in. (different from currentdir which is STMExtension\Debug\Bin)
             string currentDir = AppDomain.CurrentDomain.BaseDirectory;
             var dirI = new DirectoryInfo(currentDir);
@@ -90,66 +90,133 @@ namespace STMExtension
             return RunCmd(cscPath + " " + argStr);
         }
 
-        private void WrtStrToTestFile(string str)
+        private CmdRes RunCscWithOutAndStmIOut()
         {
-            File.WriteAllText(currentCsFile, str);
+            currentCompiledCsFile = currentCsFile + "Compiled.cs";
+            StringBuilder strB = new StringBuilder();
+            strB.Append("/out:\"" + currentCsFile + ".exe\"");
+            strB.Append(" ");
+            strB.Append("/stmiout:\"" + currentCompiledCsFile + "\"");
+            strB.Append(" ");
+            strB.Append(currentCsFile + ".cs");
+            return RunCsc(strB.ToString());
         }
 
-        private string InsertStrInSkeletonWithMain(string str)
+        #region Read and write to files
+        private void StringToTestFile(string str)
+        {
+            File.WriteAllText(currentCsFile + ".cs", str);
+        }
+
+        private String TestFileToString(string filepath)
+        {
+            StringBuilder sb = new StringBuilder();
+            using (StreamReader sr = new StreamReader(filepath))
+            {
+                String line;
+                // Read and display lines from the file until the end of 
+                // the file is reached.
+                while ((line = sr.ReadLine()) != null)
+                {
+                    sb.AppendLine(line);
+                }
+            }
+            string allines = sb.ToString();
+
+            return allines;
+        }
+        #endregion
+
+        #region Skeletons for creating examples
+
+        private string MakeSkeletonWithMain(string strInClass, string strInMain = "")
         {
             StringBuilder strBuilder = new StringBuilder();
-            strBuilder.AppendLine("static void Main() \n\t\t{\n\t\t} \n");          
-            strBuilder.AppendLine("\t\t" + str);
+            strBuilder.AppendLine("static void Main() \n\t\t{\n\t\t");
+            strBuilder.Append(strInMain + "\n\t\t}\n");
+            strBuilder.AppendLine("\t\t" + strInClass);
 
-            return InsertStrInSkeletonWithoutMain(strBuilder.ToString());
+            return MakeSkeletonWithoutMain(strBuilder.ToString());
         }
 
-        private string InsertStrInSkeletonWithoutMain(string str)
+        private string MakeSkeletonWithoutMain(string strInClass)
         {
             StringBuilder strBuilder = new StringBuilder();
             strBuilder.Append("using System;\n\n");
             strBuilder.Append("namespace TestFileNamespace\n{");
             strBuilder.Append("\n\tpublic class TestFile \n\t{ \n\t\t");
-            strBuilder.Append(str);
+            strBuilder.Append(strInClass);
             strBuilder.Append("\n\t} \n}");
 
             return strBuilder.ToString();
+        }
+        #endregion
+
+        /// <summary>
+        /// Removes the unnecessary parts in the strings given, ie. whitespace, tabs and newlines and carrige return.
+        /// </summary>
+        private string RemoveUnnecessaryParts(string str)
+        {
+            StringBuilder strB = new StringBuilder(str);
+            strB.Replace(" ", "");
+            strB.Replace("\n", "");
+            strB.Replace("\t", "");
+            strB.Replace("\r", "");
+            return strB.ToString();
+        }
+
+        private void AssertEqualStrings(string str1, string str2)
+        {
+            var cleanStr1 = RemoveUnnecessaryParts(str1);
+            var cleanStr2 = RemoveUnnecessaryParts(str2);
+            Assert.AreEqual(cleanStr1, cleanStr2);
+        }
+
+        private void AssertCmdRes(CmdRes cRes)
+        {
+            bool res = true;
+
+            if(cRes.exitCode != 0)
+                res = false;
+            if(cRes.error.Length != 0)
+                res = false;
+            if(cRes.output.Contains("error"))
+                res = false;
+
+            Assert.IsTrue(res);
         }
 
         [Test]
         public void VariableDcl()
         {
-            string finalStr = InsertStrInSkeletonWithMain(
+            string finalStr = MakeSkeletonWithMain(
                 "public int var1; \n\t\t" + 
                 "public atomic int var2;");
-            WrtStrToTestFile(finalStr);
-            CmdRes res = RunCsc(currentCsFile); //TODO: lav en metode der tjekker for at der ikke er warinings i output string og der ikke er andre exitkoder en 0
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
 
-            string expecStr = "";
-            string compiledStr = ""; //TODO: Obtain maybe from a file that is printed under compilation or through the CMD via CSC.exe (dunno if possible)
+            string expecStr = MakeSkeletonWithMain(
+                "public int var1; \n\t\t" +
+                "public STM.Implementation.Lockbased.TMInt var2 = new STM.Implementation.Lockbased.TMInt();");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
 
-            Assert.AreEqual(expecStr, compiledStr);
+            AssertEqualStrings(expecStr, compiledStr);
         }
 
         [Test]
         public void MedthodDclWithWarning()
         {
-            string finalStr = InsertStrInSkeletonWithMain(
+            string finalStr = MakeSkeletonWithMain(
                 "public int myMethod(){ \n\t\t\t" +
                 "return 5;\n\t\t\t" +
                 "return 3;\n}");
-            WrtStrToTestFile(finalStr);
-            CmdRes res = RunCsc(currentCsFile); //TODO: lav en metode der tjekker for at der ikke er warinings i output string og der ikke er andre exitkoder en 0
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
 
             Assert.IsTrue(res.output.Contains("warning CS0162: Unreachable code detected"));
         }
-
-        [Test]
-        public void CmdTest()
-        {
-            RunCmd("echo hej");
-        }
-
 
     }
 }
