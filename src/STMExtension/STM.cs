@@ -9,8 +9,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax;
 using System.Collections.Immutable;
-using Microsoft.CodeAnalysis.Formatting;
-using Microsoft.CodeAnalysis.MSBuild;
 
 namespace STMExtension
 {
@@ -812,7 +810,7 @@ namespace STMExtension
                         }
                     }
 
-                    var ive = iden.AttemptToGetParent<InvocationExpressionSyntax>();
+                    var ive = iden.AttemptToGetParentStop<InvocationExpressionSyntax,StatementSyntax>();
                     if (ive != null)
                     {
                         var methodInfo = model.GetSymbolInfo(ive);
@@ -840,7 +838,7 @@ namespace STMExtension
 
         private static int GetArgumentIndex(IdentifierNameSyntax iden)
         {
-            var arg = iden.AttemptToGetParent<ArgumentSyntax>();
+            var arg = iden.AttemptToGetParentStop<ArgumentSyntax,StatementSyntax>();
             if (arg == null)
             {
                 return -1;
