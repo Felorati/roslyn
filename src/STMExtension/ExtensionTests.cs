@@ -132,8 +132,8 @@ namespace STMExtension
         private string MakeSkeletonWithMain(string strInClass, string strInMain = "")
         {
             StringBuilder strBuilder = new StringBuilder();
-            strBuilder.AppendLine("static void Main() \n\t\t{\n\t\t");
-            strBuilder.Append(strInMain + "\n\t\t}\n");
+            strBuilder.AppendLine("static void Main() \n\t\t{");
+            strBuilder.AppendLine("\t\t\t" + strInMain + "\n\t\t}\n");
             strBuilder.AppendLine("\t\t" + strInClass);
 
             return MakeSkeletonWithoutMain(strBuilder.ToString());
@@ -176,36 +176,262 @@ namespace STMExtension
         {
             bool res = true;
 
-            if(cRes.exitCode != 0)
-                res = false;
-            if(cRes.error.Length != 0)
-                res = false;
-            if(cRes.output.Contains("error"))
+            if (cRes.exitCode != 0 || cRes.error.Length != 0 || cRes.output.Contains("error"))
                 res = false;
 
-            Assert.IsTrue(res);
+            Assert.IsTrue(res, "CmdRes is invalid.\nExitcode: " + cRes.exitCode + "\nError: " + cRes.error + "\nOutput: " + cRes.output );
         }
 
         [Test]
-        public void VariableDcl()
+        public void FieldDeclaration()
         {
             string finalStr = MakeSkeletonWithMain(
                 "public int var1; \n\t\t" + 
-                "public atomic int var2;");
+                "public atomic int var2; \n\t\t" +
+                "public atomic string var3;");
             StringToTestFile(finalStr);
             CmdRes res = RunCscWithOutAndStmIOut();
             AssertCmdRes(res);
 
             string expecStr = MakeSkeletonWithMain(
                 "public int var1; \n\t\t" +
-                "public STM.Implementation.Lockbased.TMInt var2 = new STM.Implementation.Lockbased.TMInt();");
+                "public " + STM.STMNameSpace + ".TMInt var2 = new " + STM.STMNameSpace + ".TMInt();" +
+                "public " + STM.STMNameSpace + ".TMVar<string> var3 = new " + STM.STMNameSpace + ".TMVar<string>();");
             string compiledStr = TestFileToString(currentCompiledCsFile);
 
             AssertEqualStrings(expecStr, compiledStr);
         }
 
         [Test]
-        public void MedthodDclWithWarning()
+        public void PropertyDeclaration()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public atomic int TestProp { get; set; } \n\t\t" +
+                "private atomic string TestProp2 { get; set; }"
+                );
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "private " + STM.STMNameSpace + ".TMInt _testProp = new " + STM.STMNameSpace + ".TMInt();" +
+                @"public int TestProp
+                {
+                    get
+                    {
+                        return _testProp.Value;
+                    }
+
+                    set
+                    {
+                    _testProp.Value = value;
+                    }
+                }" +
+                "private " + STM.STMNameSpace + ".TMVar<string> _testProp2 = new " + STM.STMNameSpace + ".TMVar<string>();" +
+                @"private string TestProp2
+                {
+                    get
+                    {
+                        return _testProp2.Value;
+                    }
+
+                    set
+                    {
+                        _testProp2.Value = value;
+                    }
+                }");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void LocalVarDeclaration()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod()\n\t\t"+ 
+                "{\n\t\t\t" +
+                    "atomic int var1; \n\t\t\t" +
+                    "atomic string var2; \n\t\t" +
+                "}"
+                );
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "public void TestMethod()" +
+                "{" +
+                    STM.STMNameSpace + ".TMInt var1 = new " + STM.STMNameSpace + ".TMInt();" +
+                    STM.STMNameSpace + ".TMVar<string> var2 = new " + STM.STMNameSpace + ".TMVar<string>();" +
+                "}");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void LocalVarDeclarationInstantiation()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod()\n\t\t" +
+                "{\n\t\t\t" +
+                    "atomic int var1 = 1337; \n\t\t\t" +
+                    "atomic string var2 = \"myString\"; \n\t\t" +
+                "}"
+                );
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "public void TestMethod()" +
+                "{" +
+                    STM.STMNameSpace + ".TMInt var1 = new " + STM.STMNameSpace + ".TMInt(1337);" +
+                    STM.STMNameSpace + ".TMVar<string> var2 = new " + STM.STMNameSpace + ".TMVar<string>(\"myString\");" +
+                "}");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicBlockEmpty()
+        {
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic{ \n\t\t\t"+
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain("",
+                STM.STMNameSpace + @".STMSystem.Atomic(
+                    () =>
+                    {
+                    });");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicBlockReturn()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public int TestMethod()\n\t\t" +
+                "{\n\t\t\t" +
+                    "atomic{\n\t\t\t\t" +
+                    "return 10;\n\t\t\t" +
+                    "} \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "public int TestMethod()" +
+                "{" +
+                    "return " + STM.STMNameSpace + @".STMSystem.Atomic(
+                        () =>
+                        {
+                            return 10;
+                        });
+                }");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicBlockRetry()
+        {
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic{ \n\t\t\t\t" +
+                "retry;\n\t\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain("",
+                STM.STMNameSpace + ".STMSystem.Atomic(" +
+                    "() =>" +
+                    "{" +
+                        STM.STMNameSpace + ".STMSystem.Retry();" +
+                    "});");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicOrelseBlock()
+        {
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic{ \n\t\t\t" +
+                "}\n\t\t\t" +
+                "orelse{ \n\t\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain("",
+                STM.STMNameSpace + @".STMSystem.Atomic(
+                    () =>
+                    {
+                    },
+                    () =>
+                    {
+                    });");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicMultipleOrelseBlock()
+        {
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic{ \n\t\t\t" +
+                "}\n\t\t\t" +
+                "orelse{ \n\t\t\t" +
+                "}\n\t\t\t" +
+                "orelse{ \n\t\t\t" +
+                "}\n\t\t\t" +
+                "orelse{ \n\t\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain("",
+                STM.STMNameSpace + @".STMSystem.Atomic(
+                    () =>
+                    {
+                    },
+                    () =>
+                    {
+                    },
+                    () =>
+                    {
+                    },
+                    () =>
+                    {
+                    });");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        //TODO: MORE
+        //nested atomics
+        //atomic parameter (og en case der tjekker vores fejl generering med f.eks. int og atomic int)
+        //atomic ref og out parameter
+        //atomic default parameter (vores generings fejl)
+
+        [Test]
+        public void WarningTest()
         {
             string finalStr = MakeSkeletonWithMain(
                 "public int myMethod(){ \n\t\t\t" +
@@ -217,6 +443,8 @@ namespace STMExtension
 
             Assert.IsTrue(res.output.Contains("warning CS0162: Unreachable code detected"));
         }
+
+
 
     }
 }

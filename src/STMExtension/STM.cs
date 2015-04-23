@@ -16,7 +16,7 @@ namespace STMExtension
 {
     public class STM
     {
-        private static readonly string STMNameSpace = "STM.Implementation.Lockbased";
+        public static readonly string STMNameSpace = "STM.Implementation.Lockbased";
 
         public static void Extend(ref SyntaxTree[] trees)
         {
