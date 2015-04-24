@@ -158,9 +158,7 @@ namespace STMExtension
 
                 var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
                 state.Root  = state.Root.TrackNodes(methodCalls);
-                state.UpdateState(i);
-
-                var methods = new List<MethodDeclarationSyntax>(); 
+                state.UpdateState(i); 
 
                 foreach (var item in methodCalls)
                 {
@@ -242,12 +240,10 @@ namespace STMExtension
 
                         if (replace)
                         {
-                            var methodSyntax = (MethodDeclarationSyntax)methodInfo.DeclaringSyntaxReferences[0].GetSyntax();
-                            methods.Add(methodSyntax);
                             var originalStatement = ive.GetClosestStatementSyntax();
                             var statement = originalStatement;
 
-                            state.Root = state.Root.TrackNodes(originalStatement, methodSyntax);
+                            state.Root = state.Root.TrackNodes(originalStatement);
                             statement = state.Root.GetCurrentNode(originalStatement);
                             if (localDecls.Count > 0)
                             {
@@ -270,12 +266,12 @@ namespace STMExtension
 
                 }
 
+                /*
                 methods = FilterOutDuplicates(methods).ToList();
                 var currentMethods = methods.Select(method => state.Root.GetCurrentNode(method)).ToList();
                 state.Root = state.Root.ReplaceNodes(currentMethods, (oldNode, newNode) => HandleAtomicOutParameter(oldNode));
                 state.UpdateState(i);
 
-                /*
                 currentMethods = methods.Select(method => state.Root.GetCurrentNode(method)).ToList();
                 
                 foreach (var methodDecl in currentMethods)
