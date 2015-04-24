@@ -203,17 +203,23 @@ namespace STMExtension
         }
 
         [Test]
-        public void PropertyDeclaration()
+        public void PropertyDeclarationAndUsage()
         {
             string finalStr = MakeSkeletonWithMain(
+                strInClass:
                 "public atomic int TestProp { get; set; } \n\t\t" +
-                "private atomic string TestProp2 { get; set; }"
+                "private atomic string TestProp2 { get; set; }",
+                strInMain:
+                "var objRef = new TestFile(); \n\t\t\t" +
+                "int readVar = objRef.TestProp;\n\t\t\t" +
+                "objRef.TestProp = 5;"
                 );
             StringToTestFile(finalStr);
             CmdRes res = RunCscWithOutAndStmIOut();
             AssertCmdRes(res);
 
             string expecStr = MakeSkeletonWithMain(
+                strInClass:
                 "private " + STM.STMNameSpace + ".TMInt _testProp = new " + STM.STMNameSpace + ".TMInt();" +
                 @"public int TestProp
                 {
@@ -239,7 +245,11 @@ namespace STMExtension
                     {
                         _testProp2.Value = value;
                     }
-                }");
+                }",
+                strInMain:
+                "var objRef = new TestFile();" +
+                "int readVar = objRef.TestProp;" +
+                "objRef.TestProp = 5;");
             string compiledStr = TestFileToString(currentCompiledCsFile);
             AssertEqualStrings(expecStr, compiledStr);
         }
@@ -424,27 +434,269 @@ namespace STMExtension
             AssertEqualStrings(expecStr, compiledStr);
         }
 
-        //TODO: MORE
-        //nested atomics
-        //atomic parameter (og en case der tjekker vores fejl generering med f.eks. int og atomic int)
-        //atomic ref og out parameter
-        //atomic default parameter (vores generings fejl)
-
         [Test]
-        public void WarningTest()
+        public void NestedAtomicBlocks()
         {
-            string finalStr = MakeSkeletonWithMain(
-                "public int myMethod(){ \n\t\t\t" +
-                "return 5;\n\t\t\t" +
-                "return 3;\n}");
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic{ \n\t\t\t\t"+
+                    "atomic{ \n\t\t\t\t\t" +
+                        "atomic{ \n\t\t\t\t\t" +
+                        "}\n\t\t\t\t" +
+                    "}\n\t\t\t" +
+                "}");
             StringToTestFile(finalStr);
             CmdRes res = RunCscWithOutAndStmIOut();
             AssertCmdRes(res);
 
-            Assert.IsTrue(res.output.Contains("warning CS0162: Unreachable code detected"));
+            string expecStr = MakeSkeletonWithMain("",
+                STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                "{" +
+                    STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                    "{" +
+                        STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                        "{" +
+                        "});" +
+                    "});" +
+                "});");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void NestedAtomicBlocksReturn()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public int TestMethod() \n\t\t" +
+                "{ \n\t\t\t" +
+                    "atomic{ \n\t\t\t\t" +
+                        "atomic{ \n\t\t\t\t\t" +
+                            "atomic{ \n\t\t\t\t\t\t" +
+                                "return 10; \n\t\t\t\t\t" +
+                            "}\n\t\t\t\t" +
+                        "}\n\t\t\t" +
+                    "}\n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "public int TestMethod()" +
+                "{" +
+                    "return" + STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                    "{" +
+                        "return" + STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                        "{" +
+                            "return" + STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                            "{" +
+                                "return 10;" +
+                            "});" +
+                        "});" +
+                    "});" +
+                "}");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void NestedAtomicOrelseBlocks()
+        {
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic{ \n\t\t\t\t" +
+                    "atomic{ \n\t\t\t\t\t" +
+                        "atomic{ \n\t\t\t\t\t" +
+                        "}\n\t\t\t\t\t" +
+                        "orelse{ \n\t\t\t\t\t" +
+                        "}\n\t\t\t\t\t" +
+                        "orelse{ \n\t\t\t\t\t" +
+                        "}\n\t\t\t\t" +
+                    "}\n\t\t\t\t" +
+                    "orelse{ \n\t\t\t\t" +
+                    "}\n\t\t\t" +
+                "} \n\t\t\t" +
+                "orelse{ \n\t\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain("",
+                STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                "{" +
+                    STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                    "{" +
+                        STM.STMNameSpace + ".STMSystem.Atomic(() =>" +
+                        "{" +
+                        "}, () =>" +
+                        "{" +
+                        "}, () =>" +
+                        "{" +
+                        "});" +
+                    "}, () =>" +
+                    "{" +
+                    "});" +
+                "}, () =>" +
+                "{" +
+                "});");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicParameter()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod(int param1, atomic int param2, atomic string param3) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "public void TestMethod(int param1," + STM.STMNameSpace + ".TMInt param2," + STM.STMNameSpace + ".TMVar<string> param3)" +
+                "{" +
+                "}");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicParameterOut()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "private void TestMethod(atomic out int param1) \n\t\t" +
+                "{ \n\t\t\t" +
+                    "param1 = 5; \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "private void TestMethod(out " + STM.STMNameSpace + ".TMInt param1)" +
+                "{" +
+                    "param1 = new " + STM.STMNameSpace + ".TMInt();" +
+                    "param1.Value = 5;" +
+                "}");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicParameterRef()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "private void TestMethod(atomic ref int param1) \n\t\t" +
+                "{ \n\t\t\t" +
+                    "param1 = 5; \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "private void TestMethod(ref " + STM.STMNameSpace + ".TMInt param1)" +
+                "{" +
+                    "param1.Value = 5;" +
+                "}");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        //TODO: MORE
+        //atomic out og ref parameter
+        //atomic default parameter (vores generings fejl - sæt det nede i fejl test region)
+
+        //Evt. tilføj de nedenstående i hvor metoder med deklæreret også: (ELLER lav nye - fordi, så tjekker vi at de ikke behøves at kaldes, for at skulle laves)
+        //Kald af funktioner: med atomic, atomic ref og atomic out.
+        //Brug af lokale variable, fields. 
+
+
+        #region Tests for our own generated errors
+        [Test]
+        public void IdenticalMethodOverloadsWithAtomicParameterInt()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod(int param1, string param2) \n\t\t" +
+                "{ \n\t\t" +
+                "} \n\t\t" +
+                "public void TestMethod(atomic int param1, string param2) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            //AssertCmdRes(res);
+            Assert.IsTrue(res.output.Contains("error IdenticalMethods:") && res.exitCode != 0 && res.error.Length == 0, "Did not generate identical methods error");
+        }
+
+        [Test]
+        public void IdenticalMethodOverloadsWithAtomicParameterString()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod(int param1, string param2) \n\t\t" +
+                "{ \n\t\t" +
+                "} \n\t\t" +
+                "public void TestMethod(int param1, atomic string param2) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            //AssertCmdRes(res);
+            Assert.IsTrue(res.output.Contains("error IdenticalMethods:") && res.exitCode != 0 && res.error.Length == 0, "Did not generate identical methods error");
+        }
+
+        [Test]
+        public void IdenticalMethodOverloadsWithAtomicParameterRef()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod(int param1) \n\t\t" +
+                "{ \n\t\t" +
+                "} \n\t\t" +
+                "public void TestMethod(atomic ref int param1) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+        }
+
+        [Test]
+        public void IdenticalMethodOverloadsWithParameterRef()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod(int param1) \n\t\t" +
+                "{ \n\t\t" +
+                "} \n\t\t" +
+                "public void TestMethod(ref int param1) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
         }
 
 
+        #endregion
 
+        //[Test]
+        //public void WarningTest()
+        //{
+        //    string finalStr = MakeSkeletonWithMain(
+        //        "public int myMethod(){ \n\t\t\t" +
+        //        "return 5;\n\t\t\t" +
+        //        "return 3;\n}");
+        //    StringToTestFile(finalStr);
+        //    CmdRes res = RunCscWithOutAndStmIOut();
+        //    AssertCmdRes(res);
+
+        //    Assert.IsTrue(res.output.Contains("warning CS0162: Unreachable code detected"));
+        //}
     }
 }

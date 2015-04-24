@@ -18,6 +18,11 @@ namespace TestRefNamespace
         {
             test = 12;
         }
+		
+		private static void AtomicRefTest2(atomic ref int test)
+        {
+            test = 12;
+        }
 
         static void Main()
         {
@@ -251,7 +256,7 @@ namespace TestRefNamespace
 					i = 1337;
 					atomic{
 						System.Console.WriteLine("Triple nesting...Wow");
-						return i;
+						return 5;
 					}
 				}
 			
