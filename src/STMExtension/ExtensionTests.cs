@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace STMExtension
 {
@@ -182,6 +183,18 @@ namespace STMExtension
             Assert.IsTrue(res, "CmdRes is invalid.\nExitcode: " + cRes.exitCode + "\nError: " + cRes.error + "\nOutput: " + cRes.output );
         }
 
+        private HashSet<string> GetGUIDsFromFile(string fileStr)
+        {
+            var regRes = Regex.Matches(fileStr, "_[A-Za-z0-9]+");
+            var guidIds = new HashSet<string>();
+            foreach (var r in regRes)
+            {
+                if(r.ToString().Length == 33)
+                    guidIds.Add(r.ToString());
+            }
+            return guidIds;
+        }
+
         [Test]
         public void FieldDeclaration()
         {
@@ -197,6 +210,36 @@ namespace STMExtension
                 "public int var1; \n\t\t" +
                 "public " + STM.STMNameSpace + ".TMInt var2 = new " + STM.STMNameSpace + ".TMInt();" +
                 "public " + STM.STMNameSpace + ".TMVar<string> var3 = new " + STM.STMNameSpace + ".TMVar<string>();");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void FieldDeclarationAndUsage()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static atomic int var1; \n\t\t" +
+                "public static atomic string var2;",
+                strInMain:
+                "var1 = 2; \n\t\t\t" +
+                "var2 = \"val\"; \n\t\t\t" +
+                "int newVar1 = var1; \n\t\t\t" +
+                "string newVar2 = var2;");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static " + STM.STMNameSpace + ".TMInt var1 = new " + STM.STMNameSpace + ".TMInt();" +
+                "public static " + STM.STMNameSpace + ".TMVar<string> var2 = new " + STM.STMNameSpace + ".TMVar<string>();",
+                strInMain:
+                "var1.Value = 2;" +
+                "var2.Value = \"val\";" +
+                "int newVar1 = var1.Value;" +
+                "string newVar2 = var2.Value;");
             string compiledStr = TestFileToString(currentCompiledCsFile);
 
             AssertEqualStrings(expecStr, compiledStr);
@@ -303,6 +346,35 @@ namespace STMExtension
 
             AssertEqualStrings(expecStr, compiledStr);
         }
+
+        [Test]
+        public void LocalVarDeclarationAndUsage()
+        {
+            string finalStr = MakeSkeletonWithMain("",
+                "atomic int var1; \n\t\t\t" +
+                "atomic string var2; \n\t\t\t" +
+                "var1 = 2; \n\t\t\t" +
+                "var2 = \"val\"; \n\t\t\t" +
+                "int newVar1 = var1; \n\t\t\t" +
+                "string newVar2 = var2;"
+                );
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain("",
+                    STM.STMNameSpace + ".TMInt var1 = new " + STM.STMNameSpace + ".TMInt();" +
+                    STM.STMNameSpace + ".TMVar<string> var2 = new " + STM.STMNameSpace + ".TMVar<string>();" +
+                    "var1.Value = 2;" +
+                    "var2.Value = \"val\";" +
+                    "int newVar1 = var1.Value;" +
+                    "string newVar2 = var2.Value;"
+                    );
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
 
         [Test]
         public void AtomicBlockEmpty()
@@ -610,16 +682,164 @@ namespace STMExtension
             AssertEqualStrings(expecStr, compiledStr);
         }
 
+        [Test]
+        public void AtomicParameterUsage()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(atomic int param1, atomic string param2) \n\t\t" +
+                "{ \n\t\t" +
+                "}",
+                strInMain:
+                "TestMethod(1, \"str\");\n\t\t\t" +
+                "int val1 = 1; \n\t\t\t" +
+                "string val2 = \"str\"; \n\t\t\t" +
+                "TestMethod(val1, val2);\n\t\t\t" +
+                "atomic int atomicVal1 = 1; \n\t\t\t" +
+                "atomic string atomicVal2 = \"str\"; \n\t\t\t" +
+                "TestMethod(atomicVal1, atomicVal2);");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(" + STM.STMNameSpace + ".TMInt param1," + STM.STMNameSpace + ".TMVar<string> param2)" +
+                "{" +
+                "}",
+                strInMain:
+                "TestMethod(new " + STM.STMNameSpace + ".TMInt(1), new " + STM.STMNameSpace + ".TMVar<string>(\"str\"));" +
+                "int val1 = 1;" +
+                "string val2 = \"str\";" +
+                "TestMethod(new " + STM.STMNameSpace + ".TMInt(val1), new " + STM.STMNameSpace + ".TMVar<string>(val2));" +
+                STM.STMNameSpace + ".TMInt atomicVal1 = new " + STM.STMNameSpace + ".TMInt(1);" +
+                STM.STMNameSpace + ".TMVar<string> atomicVal2 = new " + STM.STMNameSpace + ".TMVar<string>(\"str\");" +
+                "TestMethod(new " + STM.STMNameSpace + ".TMInt(atomicVal1.Value), new " + STM.STMNameSpace + ".TMVar<string>(atomicVal2.Value));"
+                );
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicOutParameterUsage() //TODO: Er ikke sikker på den virker 100% endnu (lav igen efter Kasper har fikset)
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(atomic out int param1, atomic out string param2) \n\t\t" +
+                "{ \n\t\t\t" +
+                    "param1 = 5; \n\t\t\t" +
+                    "param2 = \"val\"; \n\t\t" +
+                "}",
+                strInMain:
+                "int val1 = 1; \n\t\t\t" +
+                "string val2 = \"str\"; \n\t\t\t" +
+                "TestMethod(out val1, out val2);\n\t\t\t" +
+                "atomic int atomicVal1 = 1; \n\t\t\t" +
+                "atomic string atomicVal2 = \"str\"; \n\t\t\t" +
+                "TestMethod(out atomicVal1, out atomicVal2);");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+            HashSet<string> guids = GetGUIDsFromFile(compiledStr);  //Fetch guid's (global unique id's)
+
+            string expecStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(out " + STM.STMNameSpace + ".TMInt param1, out" + STM.STMNameSpace + ".TMVar<string> param2)" +
+                "{" +
+                    "param1 = new STM.Implementation.Lockbased.TMInt();" +
+                    "param2 = new STM.Implementation.Lockbased.TMVar<string>();" +
+                    "param1.Value = 5;" +
+                    "param2.Value = \"val\";" +
+                "}",
+                strInMain:
+                "int val1 = 1;" +
+                "string val2 = \"str\";" +
+                STM.STMNameSpace +".TMInt " + guids.ElementAt(0) +  " = new "+ STM.STMNameSpace+".TMInt(val1);" +
+                STM.STMNameSpace + ".TMVar<string> " + guids.ElementAt(1) + " = new " + STM.STMNameSpace + ".TMVar<string>(val2);" +
+                "TestMethod(out "+ guids.ElementAt(0) + ", out "+ guids.ElementAt(1) + ");" +
+                "val1 = " + guids.ElementAt(0) + ".Value;" +
+                "val2 = " + guids.ElementAt(1) + ".Value; " +
+                STM.STMNameSpace + ".TMInt atomicVal1 = new " + STM.STMNameSpace + ".TMInt(1);" +
+                STM.STMNameSpace + ".TMVar<string> atomicVal2 = new " + STM.STMNameSpace + ".TMVar<string>(\"str\");" +
+                "TestMethod(out atomicVal1, out atomicVal2);"
+                );
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void AtomicRefParameterUsage()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(atomic ref int param1, atomic ref string param2) \n\t\t" +
+                "{ \n\t\t\t" +
+                    "param1 = 5; \n\t\t\t" +
+                    "param2 = \"val\"; \n\t\t" +
+                "}",
+                strInMain:
+                "int val1 = 1; \n\t\t\t" +
+                "string val2 = \"str\"; \n\t\t\t" +
+                "TestMethod(ref val1, ref val2);\n\t\t\t" +
+                "atomic int atomicVal1 = 1; \n\t\t\t" +
+                "atomic string atomicVal2 = \"str\"; \n\t\t\t" +
+                "TestMethod(ref atomicVal1, ref atomicVal2);");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string compiledStr = TestFileToString(currentCompiledCsFile);
+            HashSet<string> guids = GetGUIDsFromFile(compiledStr);  //Fetch guid's (global unique id's)
+
+            string expecStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(ref " + STM.STMNameSpace + ".TMInt param1, ref" + STM.STMNameSpace + ".TMVar<string> param2)" +
+                "{" +
+                    "param1 = new STM.Implementation.Lockbased.TMInt();" +
+                    "param2 = new STM.Implementation.Lockbased.TMVar<string>();" +
+                    "param1.Value = 5;" +
+                    "param2.Value = \"val\";" +
+                "}",
+                strInMain:
+                "int val1 = 1;" +
+                "string val2 = \"str\";" +
+                STM.STMNameSpace + ".TMInt " + guids.ElementAt(0) + " = new " + STM.STMNameSpace + ".TMInt(val1);" +
+                STM.STMNameSpace + ".TMVar<string> " + guids.ElementAt(1) + " = new " + STM.STMNameSpace + ".TMVar<string>(val2);" +
+                "TestMethod(ref " + guids.ElementAt(0) + ", ref " + guids.ElementAt(1) + ");" +
+                "val1 = " + guids.ElementAt(0) + ".Value;" +
+                "val2 = " + guids.ElementAt(1) + ".Value; " +
+                STM.STMNameSpace + ".TMInt atomicVal1 = new " + STM.STMNameSpace + ".TMInt(1);" +
+                STM.STMNameSpace + ".TMVar<string> atomicVal2 = new " + STM.STMNameSpace + ".TMVar<string>(\"str\");" +
+                "TestMethod(ref atomicVal1, ref atomicVal2);"
+                );
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
         //TODO: MORE
-        //atomic out og ref parameter
-        //atomic default parameter (vores generings fejl - sæt det nede i fejl test region)
+        //Flere vores generings fejl? - sæt det nede i fejl test region (evt. spørg kasper efter hans)
 
         //Evt. tilføj de nedenstående i hvor metoder med deklæreret også: (ELLER lav nye - fordi, så tjekker vi at de ikke behøves at kaldes, for at skulle laves)
-        //Kald af funktioner: med atomic, atomic ref og atomic out.
-        //Brug af lokale variable, fields. 
+        //Kald af funktioner: atomic ref og atomic out.
 
 
         #region Tests for our own generated errors
+        [Test]
+        public void AtomicDefaultParameter()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public void TestMethod(atomic int par1 = 10) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            //AssertCmdRes(res);
+            Assert.IsTrue(res.output.Contains("error CS8105: Atomic keyword cannot be used with default parameters") && res.exitCode != 0 && res.error.Length == 0, "Default parameter error was not raised.");
+        }
+
         [Test]
         public void IdenticalMethodOverloadsWithAtomicParameterInt()
         {

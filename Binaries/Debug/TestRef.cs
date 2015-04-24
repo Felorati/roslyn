@@ -14,6 +14,15 @@ namespace TestRefNamespace
         public atomic int TestProp1 { get; set; }
         public atomic string TestProp2 { get; set; }
 
+		private void someMethod()
+		{
+			//AtomicRefTest(out 1);
+			int val = 1;
+			AtomicRefTest(out val);
+			atomic int aVal = 1;
+			AtomicRefTest(out aVal);
+		}
+		
         private static void AtomicRefTest(atomic out int test)
         {
             test = 12;
@@ -27,6 +36,8 @@ namespace TestRefNamespace
         static void Main()
         {
             atomic int j = 11;
+			int newj = j;
+			
             AtomicRefTest(out j);
 
             int x = 10;
