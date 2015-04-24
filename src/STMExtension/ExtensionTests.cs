@@ -798,8 +798,6 @@ namespace STMExtension
                 strInClass:
                 "public static void TestMethod(ref " + STM.STMNameSpace + ".TMInt param1, ref" + STM.STMNameSpace + ".TMVar<string> param2)" +
                 "{" +
-                    "param1 = new STM.Implementation.Lockbased.TMInt();" +
-                    "param2 = new STM.Implementation.Lockbased.TMVar<string>();" +
                     "param1.Value = 5;" +
                     "param2.Value = \"val\";" +
                 "}",
@@ -821,12 +819,70 @@ namespace STMExtension
 
         //TODO: MORE
         //Flere vores generings fejl? - sæt det nede i fejl test region (evt. spørg kasper efter hans)
+        //MANGLER (fra ErrorCode.cs):
+        //ERR_BadParamWithAtomic = 8098,
+        //ERR_DubAtomicMod = 8099,
+        //ERR_BadRefWithAtomic = 8101,
+        //ERR_BadOutWithAtomic = 8102,
+        //ERR_AtomicAccessorWithBody = 8103,
+        //ERR_AtomicMethodDeclaration = 8104
 
-        //Evt. tilføj de nedenstående i hvor metoder med deklæreret også: (ELLER lav nye - fordi, så tjekker vi at de ikke behøves at kaldes, for at skulle laves)
-        //Kald af funktioner: atomic ref og atomic out.
+        #region Tests for our own generated errors both parser errors and semantic errors
+        [Test]
+        public void ReadOnlyAtomic()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public atomic readonly int myField;\n\t\t"
+                );
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            //AssertCmdRes(res);
+            Assert.IsTrue(res.output.Contains("error CS8096: Transactional variables can not be declared readonly") && res.exitCode != 0 && res.error.Length == 0, "Error not generated.");
+        }
 
+        [Test]
+        public void ConstAtomic()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public atomic const int myField = 5;\n\t\t"
+                );
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            Assert.IsTrue(res.output.Contains("error CS8097: Transactional variables can not be declared const") && res.exitCode != 0 && res.error.Length == 0, "Error not generated.");
+        }
 
-        #region Tests for our own generated errors
+        [Test]
+        public void ThisAtomicParameter()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public void TestMethod(atomic this int param) \n\t\t" +
+                "{ \n\t\t" +
+                "}");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            //AssertCmdRes(res);
+            Assert.IsTrue(res.output.Contains("error CS8100: The parameter modifier 'this' cannot be used with 'atomic'") && res.exitCode != 0 && res.error.Length == 0, "Error not generated.");
+        }
+
+        [Test]
+        public void AtomicRefWithIntLiteral()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                strInClass:
+                "public static void TestMethod(atomic ref int par1) \n\t\t" +
+                "{ \n\t\t" +
+                "}",
+                strInMain:
+                "TestMethod(ref 5);");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            //AssertCmdRes(res);
+            Assert.IsTrue(res.output.Contains("error Invalid ref/out argument: ref/out arguments must be either a field, local variable or parameter") && res.exitCode != 0 && res.error.Length == 0, "Error not generated");
+        }
+
         [Test]
         public void AtomicDefaultParameter()
         {
@@ -901,22 +957,7 @@ namespace STMExtension
             CmdRes res = RunCscWithOutAndStmIOut();
             AssertCmdRes(res);
         }
-
-
         #endregion
 
-        //[Test]
-        //public void WarningTest()
-        //{
-        //    string finalStr = MakeSkeletonWithMain(
-        //        "public int myMethod(){ \n\t\t\t" +
-        //        "return 5;\n\t\t\t" +
-        //        "return 3;\n}");
-        //    StringToTestFile(finalStr);
-        //    CmdRes res = RunCscWithOutAndStmIOut();
-        //    AssertCmdRes(res);
-
-        //    Assert.IsTrue(res.output.Contains("warning CS0162: Unreachable code detected"));
-        //}
     }
 }
