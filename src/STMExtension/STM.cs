@@ -38,10 +38,15 @@ namespace STMExtension
         public static void ExtendCompilation(ref CSharpCompilation compilation, string stmIntermediateOutputPath)
         {
             List<Diagnostic> stmDiagnostics = new List<Diagnostic>();
+            var skipLists = new List<List<IdentifierNameSyntax>>();
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                skipLists.Add(new List<IdentifierNameSyntax>());
+            }
 
             compilation = ReplaceMethodArguments(compilation);
-            List<List<IdentifierNameSyntax>> skipLists;
-            compilation = ReplaceAtomicRefOut(compilation, stmDiagnostics, out skipLists);
+            compilation = ReplaceAtomicRefOut(compilation, stmDiagnostics, skipLists);
+            compilation = HandleAtomicOutParameters(compilation, skipLists);
             compilation = ReplaceLocalVars(compilation);
             compilation = ReplaceFieldTypes(compilation);
             compilation = ReplaceConstructorArguments(compilation);
@@ -63,6 +68,51 @@ namespace STMExtension
             }
 
             compilation.AddSTMDiagnostics(stmDiagnostics.ToImmutableArray());
+        }
+
+
+        private static CSharpCompilation HandleAtomicOutParameters(CSharpCompilation compilation, List<List<IdentifierNameSyntax>> skipLists)
+        {
+            var newTrees = compilation.SyntaxTrees.ToArray();
+            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
+            {
+                var tree = compilation.SyntaxTrees[i];
+                var root = tree.GetRoot();
+                var semanticModel = compilation.GetSemanticModel(tree);
+                //Find all method declarations with a atomic out parameter
+                var originalMethods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(md => md.ParameterList.Parameters.Any(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword))).ToList();
+
+                root = root.TrackNodes(originalMethods);
+                var methods = root.GetCurrentNodes<MethodDeclarationSyntax>(originalMethods).ToList();
+
+                //Apply handling
+                root = root.ReplaceNodes(methods, (oldNode, newNode) => HandleAtomicOutParameter(oldNode));
+                methods = root.GetCurrentNodes<MethodDeclarationSyntax>(originalMethods).ToList();
+
+                //Find identifiers to skip when apply .Value property
+                var idensToSkip = new List<IdentifierNameSyntax>();
+                foreach (var methodDecl in methods)
+                {
+                    var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
+                    var assignments = methodDecl.Body.Statements.OfType<ExpressionStatementSyntax>()
+                            .Where(exprStatement => exprStatement.Expression is AssignmentExpressionSyntax && ((exprStatement.Expression as AssignmentExpressionSyntax).Left is IdentifierNameSyntax))
+                            .Select(exprStatement => (exprStatement.Expression as AssignmentExpressionSyntax).Left as IdentifierNameSyntax);
+
+                    foreach (var param in outParameters)
+                    { 
+                        var res = assignments.Where(iden => iden.ToString() == param.Identifier.ToString()).First();
+                        idensToSkip.Add(res);
+                    }
+                }
+
+                root = root.TrackNodes(idensToSkip);
+                skipLists[i].AddRange(idensToSkip);
+
+                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
+                newTrees[i] = tree;
+                compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+            }
+            return compilation;
         }
 
         private class CompilationState
@@ -96,11 +146,10 @@ namespace STMExtension
 
         }
 
-        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation, List<Diagnostic> diagnostics, out List<List<IdentifierNameSyntax>> skipsLists)
+        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation, List<Diagnostic> diagnostics, List<List<IdentifierNameSyntax>> skipsLists)
         {
             var newTrees = compilation.SyntaxTrees.ToArray();
             var state = new CompilationState(compilation);
-            skipsLists = new List<List<IdentifierNameSyntax>>();
 
             for (int i = 0; i < state.Compilation.SyntaxTrees.Length; i++)
             {
@@ -223,12 +272,12 @@ namespace STMExtension
 
                 methods = FilterOutDuplicates(methods).ToList();
                 var currentMethods = methods.Select(method => state.Root.GetCurrentNode(method)).ToList();
-                state.Root = state.Root.ReplaceNodes(currentMethods, (oldNode, newNode) => ReplaceAtomicRefOutParams(oldNode));
+                state.Root = state.Root.ReplaceNodes(currentMethods, (oldNode, newNode) => HandleAtomicOutParameter(oldNode));
                 state.UpdateState(i);
 
+                /*
                 currentMethods = methods.Select(method => state.Root.GetCurrentNode(method)).ToList();
-
-                var idensToSkip = new List<IdentifierNameSyntax>();
+                
                 foreach (var methodDecl in currentMethods)
                 {
                     var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
@@ -243,12 +292,13 @@ namespace STMExtension
                         idensToSkip.Add(res);
                     }
                    
-                }
+                }*/
 
+                var idensToSkip = new List<IdentifierNameSyntax>();
                 var refOutArgs = state.Root.DescendantNodes().OfType<IdentifierNameSyntax>().Where(iden => skipListBuffer.Contains(iden.Identifier.Text) && ReplaceCondition(iden,state.SemanticModel)).ToList();
                 idensToSkip.AddRange(refOutArgs);
                 state.Root = state.Root.TrackNodes(idensToSkip);
-                skipsLists.Add(idensToSkip);
+                skipsLists[i].AddRange(idensToSkip);
                 
                 state.UpdateState(i);
             }
@@ -299,37 +349,8 @@ namespace STMExtension
             return SyntaxFactory.LocalDeclarationStatement(varDecl);
         }
 
-        private static MethodDeclarationSyntax ReplaceAtomicRefOutParams(MethodDeclarationSyntax methodDecl)
+        private static MethodDeclarationSyntax HandleAtomicOutParameter(MethodDeclarationSyntax methodDecl)
         {
-            /*
-            var parameters = new List<ParameterSyntax>();
-            var outParameters = new List<ParameterSyntax>();
-
-            foreach (var param in methodDecl.ParameterList.Parameters)
-            {
-                var hasOutMod = param.Modifiers.Any(SyntaxKind.OutKeyword);
-                var hasRefMod = param.Modifiers.Any(SyntaxKind.RefKeyword);
-                var hasAtomicMod = param.Modifiers.Any(SyntaxKind.AtomicKeyword);
-                if (hasAtomicMod && (hasOutMod || hasRefMod))
-                {
-                    var newMods = RemoveModifiers(param.Modifiers, SyntaxKind.RefKeyword, SyntaxKind.OutKeyword);
-                    parameters.Add(param.WithModifiers(newMods));
-                    if (hasOutMod)
-                    {
-                        outParameters.Add(param);
-                    }
-                }
-                else
-                {
-                    parameters.Add(param);
-                }
-            }
-
-
-
-            var parameterList = methodDecl.ParameterList.WithParameters(SyntaxFactory.SeparatedList(parameters));
-            var newDecl = methodDecl.WithParameterList(parameterList);
-            */
 
             var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
 
