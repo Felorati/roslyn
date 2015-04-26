@@ -63,6 +63,27 @@ namespace STMExtension
             }
         }
 
+        public static T AttemptToGetParent<T,V>(this SyntaxNode iden) where T : SyntaxNode where V : SyntaxNode
+        {
+            return AttemptToGetParentWorker<T,V>(iden.Parent);
+        }
+
+        private static T AttemptToGetParentWorker<T,V>(SyntaxNode node) where T : SyntaxNode where V : SyntaxNode
+        {
+            if (node == null)
+            {
+                return null;
+            }
+            else if (node is T || node is V)
+            {
+                return (T)node;
+            }
+            else
+            {
+                return AttemptToGetParentWorker<T>(node.Parent); ;
+            }
+        }
+
         public static T AttemptToGetParentStop<T,V>(this SyntaxNode iden) where T : SyntaxNode where V : SyntaxNode
         {
             return AttemptToGetParentStopWorker<T,V>(iden.Parent);

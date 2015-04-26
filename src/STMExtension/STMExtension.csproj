@@ -73,6 +73,7 @@
     <Compile Include="ExtensionTests.cs" />
     <Compile Include="STM.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="STMErrorDescriptors.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

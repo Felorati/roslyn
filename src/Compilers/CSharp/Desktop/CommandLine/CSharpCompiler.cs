@@ -146,9 +146,6 @@ namespace Microsoft.CodeAnalysis.CSharp
 
             var strongNameProvider = new LoggingStrongNameProvider(Arguments.KeyFileSearchPaths, touchedFilesLogger);
 
-            //Roslyn tree modification
-            STM.Extend(ref trees);
-
             var compilation = CSharpCompilation.Create(
                 Arguments.CompilationName,
                 trees.WhereNotNull(),
@@ -161,17 +158,17 @@ namespace Microsoft.CodeAnalysis.CSharp
                     WithSourceReferenceResolver(sourceFileResolver));
 
             //Roslyn reference modification: Loading STM library reference
-            var assemblyPath = Path.GetDirectoryName(typeof(object).Assembly.Location);
-            var compWithRef = compilation.AddReferences(MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
-                "STM.dll" //STM library name
-                          //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STM.dll")
-                )),
-                MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
-                "Spring.Threading.dll"))); //TODO: Maybe reference this in another way
+            compilation = compilation.AddReferences(MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
+             "STM.dll" //STM library name
+                       //Path.Combine(@"C:\Users\Toby\Dropbox\Mit\Kandidat\4_Semester\Project\roslyn\src\STMExtension\bin\Debug", "STM.dll")
+             )),
+             MetadataReference.CreateFromAssembly(Assembly.LoadFrom(
+             "Spring.Threading.dll")));
 
-            STM.ExtendCompilation(ref compWithRef, Arguments.STMIntermidiateOutputFilePath);
+            //Roslyn tree modification
+            STM.ExtendCompilation(ref compilation, Arguments.STMIntermidiateOutputFilePath);
 
-            return compWithRef;
+            return compilation;
         }
 
         private SyntaxTree ParseFile(
