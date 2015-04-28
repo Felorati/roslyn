@@ -25,6 +25,10 @@ namespace STMExtension
             {
                 return ((QualifiedNameSyntax)typesyntax).Right.ToString();
             }
+            else if(typesyntax.IsKind(SyntaxKind.GenericName))
+            {
+                return typesyntax.ToString();
+            }
             else
             {
                 throw new Exception(string.Format("Unexcepted type: {0} can not return type string", typesyntax.GetType().FullName));

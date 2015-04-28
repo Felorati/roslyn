@@ -4626,7 +4626,7 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
     <value>Transactional variables can not be declared const</value>
   </data>
   <data name="ERR_ReadonlyAtomicField" xml:space="preserve">
-    <value>Transactional variables can not be declared readonly</value>
+    <value>Transactional fields cannot be declared readonly.</value>
   </data>
   <data name="ERR_BadOutWithAtomic" xml:space="preserve">
     <value>The parameter modifier 'out' cannot be used with 'atomic'</value>
@@ -4651,5 +4651,8 @@ To remove the warning, you can use /reference instead (set the Embed Interop Typ
   </data>
   <data name="ERR_AtomicDefaultParameter" xml:space="preserve">
     <value>Atomic keyword cannot be used with default parameters</value>
+  </data>
+  <data name="ERR_VolatileAtomicField" xml:space="preserve">
+    <value>Transactional fields cannot be declared volatile.</value>
   </data>
 </root>

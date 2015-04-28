@@ -1316,6 +1316,7 @@ namespace Microsoft.CodeAnalysis.CSharp
         ERR_BadOutWithAtomic = 8102,
         ERR_AtomicAccessorWithBody = 8103,
         ERR_AtomicMethodDeclaration = 8104,
-        ERR_AtomicDefaultParameter = 8105
+        ERR_AtomicDefaultParameter = 8105,
+        ERR_VolatileAtomicField = 8106
     }
 }
