@@ -1,7 +1,6 @@
 ﻿TODO:
-Error when retry outside atomic
-Clean up member access replacment
 Named parameters
+Warning int -> atomic int
 
 
 DONE:
@@ -17,6 +16,8 @@ Ref params
 Assign to atomic out in method body
 Argument replacement for .Value params
 Figure out correct order of execution.
+Error when retry outside atomic
+Clean up member access replacment
 
 
 
