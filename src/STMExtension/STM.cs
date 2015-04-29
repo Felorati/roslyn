@@ -273,8 +273,10 @@ namespace STMExtension
                    
                 }*/
 
+                //ReplaceCondition(iden, state.SemanticModel)
+
                 var idensToSkip = new List<IdentifierNameSyntax>();
-                var refOutArgs = state.Root.DescendantNodes().OfType<IdentifierNameSyntax>().Where(iden => skipListBuffer.Contains(iden.Identifier.Text) && ReplaceCondition(iden,state.SemanticModel)).ToList();
+                var refOutArgs = state.Root.DescendantNodes().OfType<IdentifierNameSyntax>().Where(iden => skipListBuffer.Contains(iden.Identifier.Text) && iden.Parent.IsKind(SyntaxKind.Argument)).ToList();
                 idensToSkip.AddRange(refOutArgs);
                 state.Root = state.Root.TrackNodes(idensToSkip);
                 skipsLists[i].AddRange(idensToSkip);
