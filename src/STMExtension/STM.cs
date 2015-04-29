@@ -853,7 +853,7 @@ namespace STMExtension
         private static int GetArgumentIndex(IdentifierNameSyntax iden)
         {
             var arg = iden.AttemptToGetParentStop<ArgumentSyntax,StatementSyntax>();
-            if (arg == null)
+            if (arg == null || arg.Parent.IsKind(SyntaxKind.BracketedArgumentList))
             {
                 return -1;
             }

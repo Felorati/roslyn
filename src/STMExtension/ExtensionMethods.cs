@@ -31,7 +31,8 @@ namespace STMExtension
             }
             else
             {
-                throw new Exception(string.Format("Unexcepted type: {0} can not return type string", typesyntax.GetType().FullName));
+                //throw new Exception(string.Format("Unexcepted type: {0} can not return type string", typesyntax.GetType().FullName));
+                return typesyntax.ToString();
             }
         }
 
