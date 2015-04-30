@@ -14,6 +14,11 @@ namespace TestRefNamespace
         {
             test = 16;
         }
+		
+		private static void DefaultTest(atomic int x, int y = 1, int z = 2)
+		{
+            Console.WriteLine(x + y + z);
+		}
 
         static void Main()
         {
@@ -32,7 +37,9 @@ namespace TestRefNamespace
             AtomicRefTest(out x);
             Console.WriteLine("Res2: "+x);
 
-            
+            DefaultTest(1,z:3);
+			DefaultTest(1,y:3);
+			DefaultTest(1,2);
         }
 
         

@@ -207,34 +207,64 @@ namespace STMExtension
                         var args = new List<ArgumentSyntax>();
                         var replace = false;
                         var nodeSkipBuffer = new List<int>();
-                        for (int j = 0; j < methodInfo.Parameters.Count(); j++)
+                        for (int j = 0; j < ive.ArgumentList.Arguments.Count; j++)
                         {
-                            var parameter = methodInfo.Parameters[j];
                             var arg = ive.ArgumentList.Arguments[j];
-                            if (parameter.IsRefOrOut())
-                            {
-                                var symbolInfo = state.SemanticModel.GetSymbolInfo(arg.Expression);
-                                var isAtomicSymbol = IsAtomicSymbol(symbolInfo.Symbol);
-                                if ((parameter.IsAtomic || IsAtomicSymbol(symbolInfo.Symbol)) && !IsVariableSymbol(symbolInfo.Symbol))
-                                {
-                                    diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_REF_OUT_ARG, arg.GetLocation()));
-                                }
+                            var parameter = GetParameterForArg(methodInfo, arg, j);
 
-                                if (parameter.IsAtomic)
+                            if (parameter != null)
+                            {
+                                if (parameter.IsRefOrOut())
                                 {
-                                    if (!isAtomicSymbol)
+                                    var symbolInfo = state.SemanticModel.GetSymbolInfo(arg.Expression);
+                                    var isAtomicSymbol = IsAtomicSymbol(symbolInfo.Symbol);
+                                    if ((parameter.IsAtomic || IsAtomicSymbol(symbolInfo.Symbol)) && !IsVariableSymbol(symbolInfo.Symbol))
+                                    {
+                                        diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_REF_OUT_ARG, arg.GetLocation()));
+                                    }
+
+                                    if (parameter.IsAtomic)
+                                    {
+                                        if (!isAtomicSymbol)
+                                        {
+                                            //Generate local variable
+                                            var typeString = parameter.Type.ToString();
+                                            var type = DetermineSTMType(typeString);
+                                            string identifierString;
+                                            SyntaxToken identifier;
+                                            var localDecl = CreateLocalDeclaration(type, CreateObjectCreationExpression(type, CreateArgList(arg.Expression)), out identifierString, out identifier);
+                                            localDecls.Add(localDecl);
+
+                                            //Generate assignment to actual parameter from local var;
+                                            //var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
+                                            //var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
+                                            var argIdentifier = SyntaxFactory.IdentifierName(identifier);
+                                            var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, argIdentifier));
+                                            assignments.Add(assigment);
+
+                                            skipListBuffer.Add(identifierString);
+                                            //Generate new argument
+                                            arg = arg.WithExpression(argIdentifier);
+
+                                            diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_REF_ATOMIC_PARAMETER, arg.GetLocation(), parameter.Type.ToString()));
+                                        }
+                                        else
+                                        {
+                                            nodeSkipBuffer.Add(j);
+                                        }
+
+                                    }
+                                    else if (isAtomicSymbol)
                                     {
                                         //Generate local variable
                                         var typeString = parameter.Type.ToString();
-                                        var type = DetermineSTMType(typeString);
+                                        var type = SyntaxFactory.ParseTypeName(typeString + " ");
                                         string identifierString;
                                         SyntaxToken identifier;
-                                        var localDecl = CreateLocalDeclaration(type, CreateObjectCreationExpression(type, CreateArgList(arg.Expression)), out identifierString, out identifier);
+                                        var localDecl = CreateLocalDeclaration(type, arg.Expression, out identifierString, out identifier);
                                         localDecls.Add(localDecl);
 
                                         //Generate assignment to actual parameter from local var;
-                                        //var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
-                                        //var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
                                         var argIdentifier = SyntaxFactory.IdentifierName(identifier);
                                         var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, argIdentifier));
                                         assignments.Add(assigment);
@@ -242,35 +272,12 @@ namespace STMExtension
                                         skipListBuffer.Add(identifierString);
                                         //Generate new argument
                                         arg = arg.WithExpression(argIdentifier);
-                                       
+
+                                        diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_ATOMIC_REF_ARG, arg.GetLocation(), parameter.Type.ToString()));
                                     }
-                                    else
-                                    {
-                                        nodeSkipBuffer.Add(j);
-                                    }
-                                    
+
+                                    replace = true;
                                 }
-                                else if (isAtomicSymbol)
-                                {
-                                    //Generate local variable
-                                    var typeString = parameter.Type.ToString();
-                                    var type = SyntaxFactory.ParseTypeName(typeString + " ");
-                                    string identifierString;
-                                    SyntaxToken identifier;
-                                    var localDecl = CreateLocalDeclaration(type, arg.Expression, out identifierString, out identifier);
-                                    localDecls.Add(localDecl);
-
-                                    //Generate assignment to actual parameter from local var;
-                                    var argIdentifier = SyntaxFactory.IdentifierName(identifier);
-                                    var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, argIdentifier));
-                                    assignments.Add(assigment);
-
-                                    skipListBuffer.Add(identifierString);
-                                    //Generate new argument
-                                    arg = arg.WithExpression(argIdentifier);
-                                }
-
-                                replace = true;
                             }
 
                             args.Add(arg);
@@ -735,11 +742,11 @@ namespace STMExtension
         {
             args = new List<ArgumentSyntax>();
             hasAtomicParam = false;
-            for (int i = 0; i < methodInfo.Parameters.Count(); i++)
+            for (int i = 0; i < arglist.Arguments.Count; i++)
             {
-                var parameter = methodInfo.Parameters[i];
                 var arg = arglist.Arguments[i];
-                if (parameter.IsAtomic && !parameter.IsRefOrOut())
+                var parameter = GetParameterForArg(methodInfo, arg, i);
+                if (parameter != null && parameter.IsAtomic && !parameter.IsRefOrOut())
                 {
                     hasAtomicParam = true;
                     var typeString = parameter.Type.ToString();
@@ -748,6 +755,40 @@ namespace STMExtension
                 }
 
                 args.Add(arg);
+            }
+        }
+
+        private static IParameterSymbol GetParameterForArg(IMethodSymbol methodSymbol, ArgumentSyntax arg, int index)
+        {
+            if (arg.NameColon != null)
+            {
+                IParameterSymbol param = null;
+                int i = 0;
+                bool found = false;
+                while (!found && i < methodSymbol.Parameters.Length)
+                {
+                    var temp = methodSymbol.Parameters[i];
+                    if (temp.Name != null & temp.Name == arg.NameColon.ToString())
+                    {
+                        param = temp;
+                        found = true;
+                    }
+                    i++;
+                }
+
+                return param;
+            }
+            else
+            {
+                if (index < methodSymbol.Parameters.Length)
+                {
+                    return methodSymbol.Parameters[index];
+                }
+                else
+                {
+                    return null;
+                }
+               
             }
         }
 
@@ -801,15 +842,6 @@ namespace STMExtension
                 var root = tree.GetRoot();
                 var semanticModel = compilation.GetSemanticModel(tree);
                 var skipList = skipLists[i].Select(iden => root.GetCurrentNode(iden)).ToList();
-
-
-                var test = root.DescendantNodes().OfType<IdentifierNameSyntax>().Where(iden => iden.ToString() == "backing" || iden.ToString() == "Length").ToList();
-                foreach (var iden in test)
-                {
-                    var cond1 = !skipList.Contains(iden);
-                    var cond2 = ReplaceCondition(iden, semanticModel);
-                    var cond3 = IsAtomicType(semanticModel.GetTypeInfo(iden));
-                }
 
                 var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
                     .Where(iden => !skipList.Contains(iden) && ReplaceCondition(iden, semanticModel) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
