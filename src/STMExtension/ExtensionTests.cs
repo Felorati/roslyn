@@ -379,18 +379,20 @@ namespace STMExtension
         [Test]
         public void AtomicBlockEmpty()
         {
-            string finalStr = MakeSkeletonWithMain("",
-                "atomic{ \n\t\t\t"+
-                "}");
+            string finalStr = MakeSkeletonWithMain(
+                strInClass: "",
+                strInMain: "atomic{ \n\t\t\t"+
+                    "}");
             StringToTestFile(finalStr);
             CmdRes res = RunCscWithOutAndStmIOut();
             AssertCmdRes(res);
 
-            string expecStr = MakeSkeletonWithMain("",
-                STM.STMNameSpace + @".STMSystem.Atomic(
-                    () =>
-                    {
-                    });");
+            string expecStr = MakeSkeletonWithMain(
+                strInClass: "",
+                strInMain: STM.STMNameSpace + ".STMSystem.Atomic(" +
+                    "() =>" +
+                    "{" +
+                    "});");
             string compiledStr = TestFileToString(currentCompiledCsFile);
 
             AssertEqualStrings(expecStr, compiledStr);
@@ -813,6 +815,22 @@ namespace STMExtension
                 STM.STMNameSpace + ".TMVar<string> atomicVal2 = new " + STM.STMNameSpace + ".TMVar<string>(\"str\");" +
                 "TestMethod(ref atomicVal1, ref atomicVal2);"
                 );
+
+            AssertEqualStrings(expecStr, compiledStr);
+        }
+
+        [Test]
+        public void OverrideAtomicKeyword()
+        {
+            string finalStr = MakeSkeletonWithMain(
+                "public atomic int @atomic;");
+            StringToTestFile(finalStr);
+            CmdRes res = RunCscWithOutAndStmIOut();
+            AssertCmdRes(res);
+
+            string expecStr = MakeSkeletonWithMain(
+                "public " + STM.STMNameSpace + ".TMInt @atomic = new " + STM.STMNameSpace + ".TMInt();");
+            string compiledStr = TestFileToString(currentCompiledCsFile);
 
             AssertEqualStrings(expecStr, compiledStr);
         }
