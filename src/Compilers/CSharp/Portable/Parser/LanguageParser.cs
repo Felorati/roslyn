@@ -4621,6 +4621,7 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                 var tokenList = modifiers.ToTokenList();
                 bool hasReadonly = false;
                 bool hasAtomic = false;
+                bool hasVolatile = false;
                 foreach (var item in tokenList)
                 {
                     var mod = GetModifier(item);
@@ -4631,6 +4632,10 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                     else if (mod == SyntaxModifier.Atomic)
                     {
                         hasAtomic = true;
+                    }
+                    else if (mod == SyntaxModifier.Volatile)
+                    {
+                        hasVolatile = true;
                     }
                 }
 
@@ -4643,6 +4648,23 @@ namespace Microsoft.CodeAnalysis.CSharp.Syntax.InternalSyntax
                         if (mod == SyntaxModifier.ReadOnly)
                         {
                             builder.Add(this.AddError(item, ErrorCode.ERR_ReadonlyAtomicField));
+                        }
+                        else
+                        {
+                            builder.Add(item);
+                        }
+                    }
+                    tokenList = builder.ToTokenList();
+                }
+                if (hasAtomic && hasVolatile)
+                {
+                    var builder = new SyntaxListBuilder(modifiers.Count);
+                    foreach(var item in tokenList)
+                    {
+                        var mod = GetModifier(item);
+                        if(mod == SyntaxModifier.Volatile)
+                        {
+                            builder.Add(this.AddError(item, ErrorCode.ERR_VolatileAtomicField));
                         }
                         else
                         {

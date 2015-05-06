@@ -7343,7 +7343,7 @@ namespace Microsoft.CodeAnalysis.CSharp {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Transactional variables can not be declared readonly.
+        ///   Looks up a localized string similar to Transactional fields cannot be declared readonly..
         /// </summary>
         internal static string ERR_ReadonlyAtomicField {
             get {
@@ -8608,6 +8608,15 @@ namespace Microsoft.CodeAnalysis.CSharp {
         internal static string ERR_VolatileAndReadonly {
             get {
                 return ResourceManager.GetString("ERR_VolatileAndReadonly", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Transactional fields cannot be declared volatile..
+        /// </summary>
+        internal static string ERR_VolatileAtomicField {
+            get {
+                return ResourceManager.GetString("ERR_VolatileAtomicField", resourceCulture);
             }
         }
         
