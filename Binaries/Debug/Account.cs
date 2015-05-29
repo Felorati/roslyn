@@ -23,8 +23,8 @@ namespace ExampleACSharp
 		public static TransferMoney(long amount, Account from, Account to)
 		{
 			atomic{
-				from - amount;
-				to + amount;
+				from.Subtract(amount);
+				to.Add(amount);
 			}
 		}
 		
@@ -45,16 +45,6 @@ namespace ExampleACSharp
 					throw new Exception("Insufficient funds!");
 				}
 			}
-		}
-		
-		public static void operator +(Account account, long amount)
-		{
-			account.Add(amount);
-		}
-		
-		public static void operator -(Account account, long amount)
-		{
-			account.Subtract(amount);
 		}
 	}
 }
