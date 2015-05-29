@@ -699,23 +699,29 @@ namespace STMExtension
 
         private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
         {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+            var state = new CompilationState(compilation);
 
             for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
             {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
+                state.PrepIteration(i);
+                var methodCalls = state.Root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>().ToList();
+                state.Root = state.Root.TrackNodes(methodCalls);
+                state.UpdateState(i);
 
-
-                var methodCalls = root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>();
-                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceConstructorArgument(semanticModel, oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
+                for (var j = 0; j < methodCalls.Count; j++)
+                {
+                    var ive = methodCalls[j];
+                    ive = state.Root.GetCurrentNode(ive);
+                    var replacement = ReplaceConstructorArgument(state.SemanticModel, ive);
+                    if (replacement != null)
+                    {
+                        state.Root = state.Root.ReplaceNode(ive, replacement);
+                        state.UpdateState(i);
+                    }
+                }
             }
 
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+            return state.Compilation;
         }
 
 
@@ -732,10 +738,11 @@ namespace STMExtension
                 if (hasAtomicParam)
                 {
                     oce = oce.WithArgumentList(CreateArgList(args));
+                    return oce;
                 }
             }
 
-            return oce;
+            return null;
         }
 
         private static void CreateReplacementArgList(ArgumentListSyntax arglist, IMethodSymbol methodInfo, out List<ArgumentSyntax> args, out bool hasAtomicParam)
@@ -813,22 +820,30 @@ namespace STMExtension
 
         private static CSharpCompilation ReplaceMethodArguments(CSharpCompilation compilation)
         {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
+            var state = new CompilationState(compilation);
 
             for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
             {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
+                state.PrepIteration(i);
 
-                var methodCalls = root.DescendantNodes().OfType<InvocationExpressionSyntax>();
-                root = root.ReplaceNodes(methodCalls, (oldnode, newnode) => ReplaceMethodArgument(semanticModel, oldnode));
+                var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
+                state.Root = state.Root.TrackNodes(methodCalls);
+                state.UpdateState(i);
 
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
+                for (var j = 0; j < methodCalls.Count; j++)
+                {
+                    var ive = methodCalls[j];
+                    ive = state.Root.GetCurrentNode(ive);
+                    var replacement = ReplaceMethodArgument(state.SemanticModel, ive);
+                    if (replacement != null)
+                    {
+                        state.Root = state.Root.ReplaceNode(ive, replacement);
+                        state.UpdateState(i);
+                    }
+                }
             }
 
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
+            return state.Compilation;
         }
 
         private static CSharpCompilation ReplaceAtomicVariableUsage(CSharpCompilation compilation, List<List<IdentifierNameSyntax>> skipLists)
@@ -867,10 +882,11 @@ namespace STMExtension
                 if (hasAtomicParam)
                 {
                     ive = ive.WithArgumentList(CreateArgList(args));
+                    return ive;
                 }
             }
 
-            return ive;
+            return null;
         }
 
         private static bool ReplaceCondition(IdentifierNameSyntax iden, SemanticModel model)
