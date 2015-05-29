@@ -20,7 +20,7 @@ namespace ExampleACSharp
 			Balance = balance;
 		}
 		
-		public static TransferMoney(long amount, Account from, Account to)
+		public static void TransferMoney(long amount, Account from, Account to)
 		{
 			atomic{
 				from.Subtract(amount);
