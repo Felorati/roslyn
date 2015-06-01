@@ -26,19 +26,19 @@ namespace STMExtension
 
             CheckRetryPlacement(compilation, stmDiagnostics);
 
-            compilation = ReplaceProperties(compilation);
-            compilation = ReplaceAtomicOrElseBlocks(compilation);
-            compilation = ReplaceRetryStatements(compilation);
-            compilation = ReplaceMethodArguments(compilation);
-            compilation = ReplaceAtomicRefOut(compilation, stmDiagnostics, skipLists);
-            compilation = HandleAtomicOutParameters(compilation, skipLists);
-            compilation = ReplaceLocalVars(compilation);
-            compilation = ReplaceFieldTypes(compilation);
-            compilation = ReplaceConstructorArguments(compilation);
-            compilation = ReplaceParameters(compilation);
-            compilation = ReplaceAtomicVariableUsage(compilation, skipLists);
-            compilation = ReplaceMemberAccesses(compilation);
-            compilation = RemoveAtomicModifiers(compilation);
+            compilation = STMProperties.ReplaceProperties(compilation);
+            compilation = STMAtomicOrelse.ReplaceAtomicOrElseBlocks(compilation);
+            compilation = STMRetry.ReplaceRetryStatements(compilation);
+            compilation = STMMethodArgs.ReplaceMethodArguments(compilation);
+            compilation = STMRefOut.ReplaceAtomicRefOut(compilation, stmDiagnostics, skipLists);
+            compilation = STMAtomicOut.HandleAtomicOutParameters(compilation, skipLists);
+            compilation = STMLocalVars.ReplaceLocalVars(compilation);
+            compilation = STMFields.ReplaceFieldTypes(compilation);
+            compilation = STMConstructor.ReplaceConstructorArguments(compilation);
+            compilation = STMParameters.ReplaceParameters(compilation);
+            compilation = STMAtomicVariableUsage.ReplaceAtomicVariableUsage(compilation, skipLists);
+            compilation = STMMemberAccess.ReplaceMemberAccesses(compilation);
+            compilation = STMAtomicModifiers.RemoveAtomicModifiers(compilation);
 
             CheckMethodSignatures(compilation, stmDiagnostics); //Ensure two overloaded methods fx. does not have a TMInt and int param at the same position
 
@@ -56,295 +56,28 @@ namespace STMExtension
             compilation.AddSTMDiagnostics(stmDiagnostics.ToImmutableArray());
         }
 
-        private static CSharpCompilation RemoveAtomicModifiers(CSharpCompilation compilation)
-        {
-            var newTrees = compilation.SyntaxTrees.ToArray();
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-
-                //replace atomic field types
-                List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
-                var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicFields, (oldnode, newnode) => RemoveAtomicModifier(oldnode));
-
-                var allLocals = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.LocalDeclarationStatement)).Cast<LocalDeclarationStatementSyntax>().ToList();
-                var atomicLocals = allLocals.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicLocals, (oldnode, newnode) => RemoveAtomicModifier(oldnode));
-
-                List<ParameterSyntax> allParams = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.Parameter)).Cast<ParameterSyntax>().ToList();
-                var atomicParams = allParams.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicParams, (oldnode, newnode) => RemoveAtomicModifier(oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-                compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-            }
-            return compilation;
-        }
-
-        private static FieldDeclarationSyntax RemoveAtomicModifier(FieldDeclarationSyntax aField)
+        internal static FieldDeclarationSyntax RemoveAtomicModifier(FieldDeclarationSyntax aField)
         {
             //Remove atomic from modifier list
             var newFieldDcl = aField.WithModifiers(RemoveAtomicMod(aField.Modifiers));
             return newFieldDcl;
         }
 
-        private static LocalDeclarationStatementSyntax RemoveAtomicModifier(LocalDeclarationStatementSyntax aLocal)
+        internal static LocalDeclarationStatementSyntax RemoveAtomicModifier(LocalDeclarationStatementSyntax aLocal)
         {
             //Remove atomic from modifier list
             var newLocalDecl = aLocal.WithModifiers(RemoveAtomicMod(aLocal.Modifiers));
             return newLocalDecl;
         }
 
-        private static ParameterSyntax RemoveAtomicModifier(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
+        internal static ParameterSyntax RemoveAtomicModifier(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
         {
             //Remove atomic from modifier
             var newParam = aParam.WithModifiers(RemoveAtomicMod(aParam.Modifiers));
             return newParam;
         }
 
-
-        private static CSharpCompilation HandleAtomicOutParameters(CSharpCompilation compilation, List<List<IdentifierNameSyntax>> skipLists)
-        {
-            var newTrees = compilation.SyntaxTrees.ToArray();
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
-                //Find all method declarations with a atomic out parameter
-                var originalMethods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(md => md.ParameterList.Parameters.Any(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword))).ToList();
-
-                root = root.TrackNodes(originalMethods);
-                var methods = root.GetCurrentNodes<MethodDeclarationSyntax>(originalMethods).ToList();
-
-                //Apply handling
-                root = root.ReplaceNodes(methods, (oldNode, newNode) => HandleAtomicOutParameter(oldNode));
-                methods = root.GetCurrentNodes<MethodDeclarationSyntax>(originalMethods).ToList();
-
-                //Find identifiers to skip when apply .Value property
-                var idensToSkip = new List<IdentifierNameSyntax>();
-                foreach (var methodDecl in methods)
-                {
-                    var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
-                    var assignments = methodDecl.Body.Statements.OfType<ExpressionStatementSyntax>()
-                            .Where(exprStatement => exprStatement.Expression is AssignmentExpressionSyntax && ((exprStatement.Expression as AssignmentExpressionSyntax).Left is IdentifierNameSyntax))
-                            .Select(exprStatement => (exprStatement.Expression as AssignmentExpressionSyntax).Left as IdentifierNameSyntax);
-
-                    foreach (var param in outParameters)
-                    { 
-                        var res = assignments.Where(iden => iden.ToString() == param.Identifier.ToString()).First();
-                        idensToSkip.Add(res);
-                    }
-                }
-
-                root = root.TrackNodes(idensToSkip);
-                skipLists[i].AddRange(idensToSkip);
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-                compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-            }
-            return compilation;
-        }
-
-        private class CompilationState
-        {
-            public CSharpCompilation Compilation { get; set; }
-            public SyntaxTree[] NewTrees { get; set; }
-            public SyntaxTree Tree { get; set; }
-            public SyntaxNode Root { get; set; }
-            public SemanticModel SemanticModel { get; set; }
-            public CompilationState(CSharpCompilation compilation)
-            {
-                NewTrees = compilation.SyntaxTrees.ToArray();
-                Compilation = compilation;
-            }
-
-            public void PrepIteration(int i)
-            {
-                Tree = Compilation.SyntaxTrees[i];
-                Root = Tree.GetRoot();
-            }
-
-            public void UpdateState(int i)
-            {
-                Tree = SyntaxFactory.SyntaxTree(Root, Tree.Options, Tree.FilePath);
-                NewTrees[i] = Tree;
-                Compilation = CSharpCompilation.Create(Compilation.AssemblyName, NewTrees, Compilation.References, Compilation.Options);
-                NewTrees = Compilation.SyntaxTrees.ToArray();
-                Root = Tree.GetRoot();
-                SemanticModel = Compilation.GetSemanticModel(Tree);
-            }
-
-        }
-
-        private static CSharpCompilation ReplaceAtomicRefOut(CSharpCompilation compilation, List<Diagnostic> diagnostics, List<List<IdentifierNameSyntax>> skipsLists)
-        {
-            var newTrees = compilation.SyntaxTrees.ToArray();
-            var state = new CompilationState(compilation);
-
-            for (int i = 0; i < state.Compilation.SyntaxTrees.Length; i++)
-            {
-                var skipListBuffer = new List<string>();
-                state.PrepIteration(i);
-
-                var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
-                state.Root  = state.Root.TrackNodes(methodCalls);
-                state.UpdateState(i); 
-
-                foreach (var item in methodCalls)
-                {
-                    var ive = state.Root.GetCurrentNode(item);
-                    var info = state.SemanticModel.GetSymbolInfo(ive);
-                    if (info.Symbol != null)
-                    {
-                        IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
-                        var localDecls = new List<LocalDeclarationStatementSyntax>();
-                        var assignments = new List<ExpressionStatementSyntax>();
-                        var args = new List<ArgumentSyntax>();
-                        var replace = false;
-                        var nodeSkipBuffer = new List<int>();
-                        for (int j = 0; j < ive.ArgumentList.Arguments.Count; j++)
-                        {
-                            var arg = ive.ArgumentList.Arguments[j];
-                            var parameter = GetParameterForArg(methodInfo, arg, j);
-
-                            if (parameter != null)
-                            {
-                                if (parameter.IsRefOrOut())
-                                {
-                                    var symbolInfo = state.SemanticModel.GetSymbolInfo(arg.Expression);
-                                    var isAtomicSymbol = IsAtomicSymbol(symbolInfo.Symbol);
-                                    if ((parameter.IsAtomic || IsAtomicSymbol(symbolInfo.Symbol)) && !IsVariableSymbol(symbolInfo.Symbol))
-                                    {
-                                        diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_REF_OUT_ARG, arg.GetLocation()));
-                                    }
-
-                                    if (parameter.IsAtomic)
-                                    {
-                                        if (!isAtomicSymbol)
-                                        {
-                                            //Generate local variable
-                                            var typeString = parameter.Type.ToString();
-                                            var type = DetermineSTMType(typeString);
-                                            string identifierString;
-                                            SyntaxToken identifier;
-                                            var localDecl = CreateLocalDeclaration(type, CreateObjectCreationExpression(type, CreateArgList(arg.Expression)), out identifierString, out identifier);
-                                            localDecls.Add(localDecl);
-
-                                            //Generate assignment to actual parameter from local var;
-                                            //var memberAccess = CreatePropertyAccess(SyntaxFactory.IdentifierName(identifier), "Value");
-                                            //var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, memberAccess));
-                                            var argIdentifier = SyntaxFactory.IdentifierName(identifier);
-                                            var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, argIdentifier));
-                                            assignments.Add(assigment);
-
-                                            skipListBuffer.Add(identifierString);
-                                            //Generate new argument
-                                            arg = arg.WithExpression(argIdentifier);
-
-                                            diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_REF_ATOMIC_PARAMETER, arg.GetLocation(), parameter.Type.ToString()));
-                                        }
-                                        else
-                                        {
-                                            nodeSkipBuffer.Add(j);
-                                        }
-
-                                    }
-                                    else if (isAtomicSymbol)
-                                    {
-                                        //Generate local variable
-                                        var typeString = parameter.Type.ToString();
-                                        var type = SyntaxFactory.ParseTypeName(typeString + " ");
-                                        string identifierString;
-                                        SyntaxToken identifier;
-                                        var localDecl = CreateLocalDeclaration(type, arg.Expression, out identifierString, out identifier);
-                                        localDecls.Add(localDecl);
-
-                                        //Generate assignment to actual parameter from local var;
-                                        var argIdentifier = SyntaxFactory.IdentifierName(identifier);
-                                        var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, arg.Expression, argIdentifier));
-                                        assignments.Add(assigment);
-
-                                        skipListBuffer.Add(identifierString);
-                                        //Generate new argument
-                                        arg = arg.WithExpression(argIdentifier);
-
-                                        diagnostics.Add(Diagnostic.Create(STMErrorDescriptors.DD_INVALID_ATOMIC_REF_ARG, arg.GetLocation(), parameter.Type.ToString()));
-                                    }
-
-                                    replace = true;
-                                }
-                            }
-
-                            args.Add(arg);
-                        }
-
-                        if (replace)
-                        {
-                            var originalStatement = ive.GetClosestStatementSyntax();
-                            var statement = originalStatement;
-
-                            var trackNodes = new List<SyntaxNode>(nodeSkipBuffer.Count);
-                            trackNodes.Add(originalStatement);
-
-                            state.Root = state.Root.TrackNodes(trackNodes);
-                            statement = state.Root.GetCurrentNode(originalStatement);
-
-                            if (localDecls.Count > 0)
-                            {
-                                state.Root = state.Root.InsertNodesBefore(statement, localDecls);
-                                statement = state.Root.GetCurrentNode(originalStatement);
-                            }
-
-                            if (assignments.Count > 0)
-                            {
-                                state.Root = state.Root.InsertNodesAfter(statement, assignments);
-                                statement = state.Root.GetCurrentNode(originalStatement);
-                            }
-                           
-                            var toReplace = state.Root.GetCurrentNode(item);
-                            state.Root = state.Root.ReplaceNode(toReplace, ive.WithArgumentList(CreateArgList(args)));
-                            var newIve = state.Root.GetCurrentNode(item);
-
-                            if (nodeSkipBuffer.Count > 0)
-                            {
-                                var arguments = new List<ArgumentSyntax>();
-                                for (int k = 0; k < newIve.ArgumentList.Arguments.Count; k++)
-                                {
-                                    if (nodeSkipBuffer.Contains(k))
-                                    {
-                                        arguments.Add(newIve.ArgumentList.Arguments[k]);
-                                    }
-                                }
-
-                                var atomicSkip = arguments.Select(arg => arg.Expression is IdentifierNameSyntax ? (IdentifierNameSyntax)arg.Expression : arg.Expression.DescendantNodes().OfType<IdentifierNameSyntax>().Last());
-                                state.Root = state.Root.TrackNodes(atomicSkip);
-                                skipsLists[i].AddRange(atomicSkip);
-                            }
-
-                            state.UpdateState(i);
-                        }
-                    }
-
-                }
-
-                var idensToSkip = new List<IdentifierNameSyntax>();
-                var refOutArgs = state.Root.DescendantNodes().OfType<IdentifierNameSyntax>().Where(iden => skipListBuffer.Contains(iden.Identifier.Text) && iden.Parent.IsKind(SyntaxKind.Argument)).ToList();
-                idensToSkip.AddRange(refOutArgs);
-                state.Root = state.Root.TrackNodes(idensToSkip);
-                skipsLists[i].AddRange(idensToSkip);
-
-                state.UpdateState(i);
-            }
-
-            return state.Compilation;
-        }
-
-        private static bool IsVariableSymbol(ISymbol symbol)
+        internal static bool IsVariableSymbol(ISymbol symbol)
         {
             if (symbol != null)
             {
@@ -354,7 +87,7 @@ namespace STMExtension
             return false;
         }
 
-        private static bool IsAtomicSymbol(ISymbol symbol)
+        internal static bool IsAtomicSymbol(ISymbol symbol)
         {
             if (symbol != null)
             {
@@ -377,7 +110,7 @@ namespace STMExtension
             return false;
         }
 
-        private  static LocalDeclarationStatementSyntax CreateLocalDeclaration(TypeSyntax type, ExpressionSyntax initExpr, out string identifierString, out SyntaxToken identifier)
+        internal  static LocalDeclarationStatementSyntax CreateLocalDeclaration(TypeSyntax type, ExpressionSyntax initExpr, out string identifierString, out SyntaxToken identifier)
         {
             var initializer = SyntaxFactory.EqualsValueClause(initExpr);
             identifierString = "_" + Guid.NewGuid().ToString().Replace("-", string.Empty);
@@ -386,34 +119,6 @@ namespace STMExtension
             var varDecl = SyntaxFactory.VariableDeclaration(type, SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { varDecltor }));
             return SyntaxFactory.LocalDeclarationStatement(varDecl);
         }
-
-        private static MethodDeclarationSyntax HandleAtomicOutParameter(MethodDeclarationSyntax methodDecl)
-        {
-
-            var outParameters = methodDecl.ParameterList.Parameters.Where(p => p.Modifiers.Any(SyntaxKind.OutKeyword) && p.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
-
-            if (outParameters.Count > 0)
-            {
-                var statementBuffer = new List<StatementSyntax>();
-                foreach (var param in outParameters)
-                {
-                    var identifier = SyntaxFactory.IdentifierName(param.Identifier);
-                    var initializer = CreateObjectCreationExpression(DetermineSTMType(param.Type), SyntaxFactory.ArgumentList());
-                    var assigment = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, identifier, initializer));
-                    statementBuffer.Add(assigment);
-                }
-
-                foreach (var statement in methodDecl.Body.Statements)
-                {
-                    statementBuffer.Add(statement);
-                }
-
-                methodDecl = methodDecl.WithBody(SyntaxFactory.Block(statementBuffer));
-            }
-
-            return methodDecl;
-        }
-
 
         private static IEnumerable<MethodDeclarationSyntax> FilterOutDuplicates(IEnumerable<MethodDeclarationSyntax> methodDecls)
         {
@@ -641,111 +346,13 @@ namespace STMExtension
             return originalType;
         }
 
-        private static CSharpCompilation ReplaceMemberAccesses(CSharpCompilation compilation)
-        {
-            var newTrees = compilation.SyntaxTrees.ToArray();
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var replacedNodes = new HashSet<int>();
-                var replaced = true;
-                var visited = new List<MemberAccessExpressionSyntax>();
-                while (replaced)
-                {
-                    var tree = compilation.SyntaxTrees[i];
-                    var root = tree.GetRoot();
-                    var semanticModel = compilation.GetSemanticModel(tree);
 
-                    var memberAccesses = GetMemberAccesses(root, semanticModel, root.GetCurrentNodes<MemberAccessExpressionSyntax>(visited));
-                    if (memberAccesses.Count > 0)
-                    {
-                        visited.AddRange(memberAccesses);
-                        root = root.TrackNodes(memberAccesses);
-                        memberAccesses = root.GetCurrentNodes<MemberAccessExpressionSyntax>(memberAccesses).ToList();
-                        root = root.ReplaceNodes(memberAccesses, (oldNode, newNode) => ReplaceMemberAccess(oldNode));
-                    }
-                    else
-                    {
-                        replaced = false;
-                    }
-                    
-                    tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                    newTrees[i] = tree;
-                    compilation = CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-                }
-            }
-            return compilation;
-        }
-
-        private static List<MemberAccessExpressionSyntax> GetMemberAccesses(SyntaxNode root, SemanticModel semanticModel, IEnumerable<MemberAccessExpressionSyntax> visited)
-        {
-            return root.DescendantNodes().OfType<MemberAccessExpressionSyntax>().Where(ma => !visited.Contains(ma) && IsAtomicType(semanticModel.GetTypeInfo(ma))).ToList();
-        }
-
-        private static bool ReplaceMemberAccessCondition(MemberAccessExpressionSyntax ma)
-        {
-            return !(ma.Parent is MemberAccessExpressionSyntax && ((MemberAccessExpressionSyntax)ma.Parent).Name.Identifier.ValueText == "Value");
-        }
-
-        private static MemberAccessExpressionSyntax ReplaceMemberAccess(MemberAccessExpressionSyntax ma)
-        {
-            var replacement = CreatePropertyAccess(ma, "Value");
-            return replacement;
-        }
-
-        private static MemberAccessExpressionSyntax CreatePropertyAccess(ExpressionSyntax expression, string property)
+        internal static MemberAccessExpressionSyntax CreatePropertyAccess(ExpressionSyntax expression, string property)
         {
             return SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, expression, SyntaxFactory.IdentifierName(property));
         }
 
-        private static CSharpCompilation ReplaceConstructorArguments(CSharpCompilation compilation)
-        {
-            var state = new CompilationState(compilation);
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                state.PrepIteration(i);
-                var methodCalls = state.Root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>().ToList();
-                state.Root = state.Root.TrackNodes(methodCalls);
-                state.UpdateState(i);
-
-                for (var j = 0; j < methodCalls.Count; j++)
-                {
-                    var ive = methodCalls[j];
-                    ive = state.Root.GetCurrentNode(ive);
-                    var replacement = ReplaceConstructorArgument(state.SemanticModel, ive);
-                    if (replacement != null)
-                    {
-                        state.Root = state.Root.ReplaceNode(ive, replacement);
-                        state.UpdateState(i);
-                    }
-                }
-            }
-
-            return state.Compilation;
-        }
-
-
-        private static ObjectCreationExpressionSyntax ReplaceConstructorArgument(SemanticModel semanticModel, ObjectCreationExpressionSyntax oce)
-        {
-            var info = semanticModel.GetSymbolInfo(oce);
-            if (info.Symbol != null)
-            {
-                IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
-                List<ArgumentSyntax> args;
-                bool hasAtomicParam;
-                CreateReplacementArgList(oce.ArgumentList, methodInfo, out args, out hasAtomicParam);
-
-                if (hasAtomicParam)
-                {
-                    oce = oce.WithArgumentList(CreateArgList(args));
-                    return oce;
-                }
-            }
-
-            return null;
-        }
-
-        private static void CreateReplacementArgList(ArgumentListSyntax arglist, IMethodSymbol methodInfo, out List<ArgumentSyntax> args, out bool hasAtomicParam)
+        internal static void CreateReplacementArgList(ArgumentListSyntax arglist, IMethodSymbol methodInfo, out List<ArgumentSyntax> args, out bool hasAtomicParam)
         {
             args = new List<ArgumentSyntax>();
             hasAtomicParam = false;
@@ -765,7 +372,7 @@ namespace STMExtension
             }
         }
 
-        private static IParameterSymbol GetParameterForArg(IMethodSymbol methodSymbol, ArgumentSyntax arg, int index)
+        internal static IParameterSymbol GetParameterForArg(IMethodSymbol methodSymbol, ArgumentSyntax arg, int index)
         {
             if (arg.NameColon != null)
             {
@@ -799,97 +406,7 @@ namespace STMExtension
             }
         }
 
-        private static CSharpCompilation ReplaceParameters(CSharpCompilation compilation)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                //replace atomic parameter types
-                List<ParameterSyntax> allParams = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.Parameter)).Cast<ParameterSyntax>().ToList();
-                var atomicParams = allParams.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicParams, (oldnode, newnode) => ReplaceParam(oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-        }
-
-        private static CSharpCompilation ReplaceMethodArguments(CSharpCompilation compilation)
-        {
-            var state = new CompilationState(compilation);
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                state.PrepIteration(i);
-
-                var methodCalls = state.Root.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
-                state.Root = state.Root.TrackNodes(methodCalls);
-                state.UpdateState(i);
-
-                for (var j = 0; j < methodCalls.Count; j++)
-                {
-                    var ive = methodCalls[j];
-                    ive = state.Root.GetCurrentNode(ive);
-                    var replacement = ReplaceMethodArgument(state.SemanticModel, ive);
-                    if (replacement != null)
-                    {
-                        state.Root = state.Root.ReplaceNode(ive, replacement);
-                        state.UpdateState(i);
-                    }
-                }
-            }
-
-            return state.Compilation;
-        }
-
-        private static CSharpCompilation ReplaceAtomicVariableUsage(CSharpCompilation compilation, List<List<IdentifierNameSyntax>> skipLists)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
-                var skipList = skipLists[i].Select(iden => root.GetCurrentNode(iden)).ToList();
-
-                var tmVarIdentifiers = root.DescendantNodes().OfType<IdentifierNameSyntax>()
-                    .Where(iden => !skipList.Contains(iden) && ReplaceCondition(iden, semanticModel) && IsAtomicType(semanticModel.GetTypeInfo(iden)));
-                root = root.ReplaceNodes(tmVarIdentifiers, (oldnode, newnode) => ReplaceIdentifier(oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-        }
-
-        private static InvocationExpressionSyntax ReplaceMethodArgument(SemanticModel semanticModel, InvocationExpressionSyntax ive)
-        {
-            var info = semanticModel.GetSymbolInfo(ive);
-            if (info.Symbol != null)
-            {
-                IMethodSymbol methodInfo = (IMethodSymbol)info.Symbol;
-                List<ArgumentSyntax> args;
-                bool hasAtomicParam;
-                CreateReplacementArgList(ive.ArgumentList, methodInfo, out args, out hasAtomicParam);
-
-                if (hasAtomicParam)
-                {
-                    ive = ive.WithArgumentList(CreateArgList(args));
-                    return ive;
-                }
-            }
-
-            return null;
-        }
-
-        private static bool ReplaceCondition(IdentifierNameSyntax iden, SemanticModel model)
+        internal static bool ReplaceCondition(IdentifierNameSyntax iden, SemanticModel model)
         {
             var symbolInfo = model.GetSymbolInfo(iden);
             if (symbolInfo.Symbol != null)
@@ -984,16 +501,8 @@ namespace STMExtension
 
             return -1;
         }
-        
 
-        private static MemberAccessExpressionSyntax ReplaceIdentifier(IdentifierNameSyntax iden)
-        {
-            var valueIden = SyntaxFactory.IdentifierName("Value");
-            var newNode = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression, iden, SyntaxFactory.Token(SyntaxKind.DotToken), valueIden);
-            return newNode;
-        }
-
-        private static bool IsAtomicType(TypeInfo typeInfo)
+        internal static bool IsAtomicType(TypeInfo typeInfo)
         {
             bool isAtomic = false;
             if (typeInfo.Type != null && typeInfo.Type.ContainingNamespace != null && typeInfo.Type.ContainingNamespace.ToString() == STMNameSpace)
@@ -1025,100 +534,7 @@ namespace STMExtension
             File.AppendAllText(stmIntermediateOutputPath, textAfter);
         }
 
-        private static CSharpCompilation ReplaceProperties(CSharpCompilation compilation)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                //Generates a manual property
-                var allProperties = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.PropertyDeclaration)).Cast<PropertyDeclarationSyntax>().ToList();
-                var atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
-                root = root.TrackNodes(atomicProperties);
-
-                foreach (var item in atomicProperties)
-                {
-                    var atomicProperty = root.GetCurrentNode(item);
-                    var modifiersWithoutAtomic = RemoveAtomicMod(atomicProperty.Modifiers);
-                    var backingFieldIdentifier = GenerateFieldName(atomicProperty.Identifier);
-
-                    var getModifier = SyntaxFactory.TokenList();
-                    var setModifier = SyntaxFactory.TokenList();
-                    GetPropertyModifier(atomicProperty, ref getModifier, ref setModifier);
-
-                    var returnStatement = SyntaxFactory.ReturnStatement(SyntaxFactory.Token(SyntaxKind.ReturnKeyword), SyntaxFactory.IdentifierName(backingFieldIdentifier), SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-                    var getBlock = SyntaxFactory.Block(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), SyntaxFactory.List<StatementSyntax>().Add(returnStatement), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
-                    var getAccessorDeclaration = SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration, atomicProperty.AttributeLists, getModifier, SyntaxFactory.Token(SyntaxKind.GetKeyword), getBlock, SyntaxFactory.Token(SyntaxKind.None));
-
-                    var expressionStatement = SyntaxFactory.ExpressionStatement(SyntaxFactory.AssignmentExpression(SyntaxKind.SimpleAssignmentExpression, SyntaxFactory.IdentifierName(backingFieldIdentifier), SyntaxFactory.Token(SyntaxKind.EqualsToken), SyntaxFactory.IdentifierName("value")), SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-                    var setBlock = SyntaxFactory.Block(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), SyntaxFactory.List<StatementSyntax>().Add(expressionStatement), SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
-                    var setAccessorDeclaration = SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration, atomicProperty.AttributeLists, setModifier, SyntaxFactory.Token(SyntaxKind.SetKeyword), setBlock, SyntaxFactory.Token(SyntaxKind.None));
-
-                    var accessors = SyntaxFactory.List<AccessorDeclarationSyntax>().Add(getAccessorDeclaration).Add(setAccessorDeclaration);
-                    var accessorList = SyntaxFactory.AccessorList(SyntaxFactory.Token(SyntaxKind.OpenBraceToken), accessors, SyntaxFactory.Token(SyntaxKind.CloseBraceToken));
-                    var manuelProperty = SyntaxFactory.PropertyDeclaration(atomicProperty.AttributeLists, modifiersWithoutAtomic, atomicProperty.Type, null, atomicProperty.Identifier, accessorList);
-
-                    root = root.InsertNodesAfter(atomicProperty, SyntaxFactory.List<PropertyDeclarationSyntax>().Add(manuelProperty));
-                }
-
-                //Converts atomic property to atomic backing field
-                allProperties = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.PropertyDeclaration)).Cast<PropertyDeclarationSyntax>().ToList();
-                atomicProperties = allProperties.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword)).ToList();
-                root = root.ReplaceNodes(atomicProperties, (oldnode, newnode) => ReplaceProperty(oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-        }
-
-        private static void GetPropertyModifier(PropertyDeclarationSyntax atomicProperty, ref SyntaxTokenList getModifier, ref SyntaxTokenList setModifier)
-        {
-            foreach (var mod in atomicProperty.AccessorList.Accessors)
-            {
-                var keyword = mod.Keyword;
-                var modifier = keyword.GetPreviousToken();
-                if (modifier.IsKeyword())
-                {
-                    if (keyword.IsKind(SyntaxKind.GetKeyword))
-                    {
-                        getModifier = getModifier.Add(modifier);
-                    }
-                    else if (keyword.IsKind(SyntaxKind.SetKeyword))
-                    {
-                        setModifier = setModifier.Add(modifier);
-                    }
-                }
-            }
-        }
-
-        private static SyntaxNode ReplaceProperty(PropertyDeclarationSyntax aPropertyDcl)
-        {
-            // Generate backing field
-            var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword), SyntaxFactory.Token(SyntaxKind.AtomicKeyword));
-            var identifier = SyntaxFactory.Identifier(GenerateFieldName(aPropertyDcl.Identifier));
-            var variableDeclarator = SyntaxFactory.VariableDeclarator(identifier);
-            var variableDeclarators = SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { variableDeclarator });
-            var variableDeclaration = SyntaxFactory.VariableDeclaration(aPropertyDcl.Type, variableDeclarators);
-            var replacingField = SyntaxFactory.FieldDeclaration(aPropertyDcl.AttributeLists, modifiers, variableDeclaration, SyntaxFactory.Token(SyntaxKind.SemicolonToken));
-            return replacingField;
-        }
-
-        private static string GenerateFieldName(SyntaxToken identifier)
-        {
-            var nameAsString = new StringBuilder(identifier.ToString());
-            nameAsString.Insert(0, "_", 1);
-            nameAsString.Remove(1, 1);
-            nameAsString.Insert(1, char.ToLower(identifier.ToString()[0]));
-            return nameAsString.ToString();
-        }
-
-
-
-        private static NameSyntax DetermineSTMType(string typeString)
+        internal static NameSyntax DetermineSTMType(string typeString)
         {
             string aFFullTypeStr = "";
             switch (typeString)
@@ -1141,7 +557,7 @@ namespace STMExtension
             return newTypeDcl;
         }
 
-        private static NameSyntax DetermineSTMType(TypeSyntax aFType, SemanticModel semanticModel)
+        internal static NameSyntax DetermineSTMType(TypeSyntax aFType, SemanticModel semanticModel)
         {
             string aFTypeString = aFType.GetTypeString();
             if (aFTypeString == "var")
@@ -1151,7 +567,7 @@ namespace STMExtension
             return DetermineSTMType(aFTypeString);
         }
 
-        private static NameSyntax DetermineSTMType(TypeSyntax aFType)
+        internal static NameSyntax DetermineSTMType(TypeSyntax aFType)
         {
             string aFTypeString = aFType.GetTypeString();
             return DetermineSTMType(aFTypeString);
@@ -1172,6 +588,7 @@ namespace STMExtension
             // Return char and concat substring.
             return char.ToUpper(s[0]) + s.Substring(1);
         }
+
         private static string FirstCharToLower(string s)
         {
             // Check for empty string.
@@ -1183,190 +600,18 @@ namespace STMExtension
             return char.ToLower(s[0]) + s.Substring(1);
         }
 
-
-        private static ParameterSyntax ReplaceParam(ParameterSyntax aParam) //TODO: Der skal nok laves noget specielt med params, ref og out
-        {
-            //Remove atomic from modifier
-            //var newParam = aParam.WithModifiers(RemoveAtomicMod(aParam.Modifiers));
-            var newParam = aParam;
-            //Replace type and initializers
-            var newTypeDcl = DetermineSTMType(newParam.Type);
-            newParam = newParam.WithType(newTypeDcl);
-            return newParam;
-        }
-
-        private static FieldDeclarationSyntax ReplaceFieldDecl(FieldDeclarationSyntax aField)
-        {
-            //Remove atomic from modifier list
-            //var newFieldDcl = aField.WithModifiers(RemoveAtomicMod(aField.Modifiers));
-            var newFieldDcl = aField;
-            //Replace type and initializers
-            newFieldDcl = newFieldDcl.WithDeclaration(ConstructVariableDeclaration(newFieldDcl.Declaration));
-            return newFieldDcl;
-        }
-
-        private static CSharpCompilation ReplaceRetryStatements(CSharpCompilation compilation)
-        {
-            var newTrees = compilation.SyntaxTrees.ToArray();
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-
-                //replace retry's
-                var retryNodes = root.DescendantNodes().OfType<RetryStatementSyntax>().ToList();
-                root = root.ReplaceNodes(retryNodes, (oldnode, newnode) => ReplaceRetry(oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options); ;
-        }
-
-        private static SyntaxNode ReplaceRetry(RetryStatementSyntax rNode)
-        {
-            return SyntaxFactory.ExpressionStatement(
-                       SyntaxFactory.InvocationExpression(SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Retry"))));
-        }
-
-
-        private static IEnumerable<AtomicStatementSyntax> GetAtomics(SyntaxNode root)
-        {
-            return root.DescendantNodes().OfType<AtomicStatementSyntax>();
-        }
-
-        private static CSharpCompilation ReplaceAtomicOrElseBlocks(CSharpCompilation compilation)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-
-                //replace atomic and orelse blocks
-                while (GetAtomics(root).Any())
-                {
-                    List<AtomicStatementSyntax> atomicNodes = root.DescendantNodes().
-                        Where(
-                            node => node.IsKind(SyntaxKind.AtomicStatement) && //is atomic node
-                            !GetAtomics(node).Any()) //does not have any inner atomic
-                            .Cast<AtomicStatementSyntax>().ToList();
-                    root = root.ReplaceNodes(atomicNodes, (oldnode, newnode) => ReplaceAtomicOrElse(oldnode));
-                }
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-
-            
-        }
-
-        private static StatementSyntax ReplaceAtomicOrElse(AtomicStatementSyntax anAtomic)
-        {
-            //Build up arguments to library call
-            List<ArgumentSyntax> aArguments = new List<ArgumentSyntax>();
-
-            //Atomic arg
-            StatementSyntax aBlock = anAtomic.Statement;
-            var aLambda = SyntaxFactory.ParenthesizedLambdaExpression(aBlock);
-            var atomicArg = SyntaxFactory.Argument(aLambda);
-            aArguments.Add(atomicArg);
-
-            //OrElse args
-            var aOrElses = anAtomic.Orelses;
-            foreach (var oe in aOrElses)
-            {
-                var oeLambda = SyntaxFactory.ParenthesizedLambdaExpression(oe.Statement);
-                var oeArg = SyntaxFactory.Argument(oeLambda);
-                aArguments.Add(oeArg);
-            }
-
-            //Create library call  
-            var expression = SyntaxFactory.InvocationExpression(
-                SyntaxFactory.ParseName(PreprendNameSpace("STMSystem.Atomic")),
-                SyntaxFactory.ArgumentList(
-                    arguments: SyntaxFactory.SeparatedList<ArgumentSyntax>(aArguments)));
-
-            //Add return statement if there is return in the atomic block, else make it an expression statement
-            var allButLambdas = aBlock.DescendantNodes((node) => !node.IsKind(SyntaxKind.ParenthesizedLambdaExpression));
-            var allReturns = allButLambdas.Where(node => node.IsKind(SyntaxKind.ReturnStatement)).ToList();
-
-            StatementSyntax atomicInvoNode = (allReturns.Count > 0) ?
-                atomicInvoNode = SyntaxFactory.ReturnStatement(SyntaxFactory.Token(SyntaxKind.ReturnKeyword), expression, SyntaxFactory.Token(SyntaxKind.SemicolonToken)) :
-                atomicInvoNode = SyntaxFactory.ExpressionStatement(expression);
-
-
-            return atomicInvoNode;
-        }
-
-        private static CSharpCompilation ReplaceFieldTypes(CSharpCompilation compilation)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-
-                //replace atomic field types
-                List<FieldDeclarationSyntax> allFields = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.FieldDeclaration)).Cast<FieldDeclarationSyntax>().ToList();
-                var atomicFields = allFields.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-                root = root.ReplaceNodes(atomicFields, (oldnode, newnode) => ReplaceFieldDecl(oldnode));
-
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-        }
-
-        private static CSharpCompilation ReplaceLocalVars(CSharpCompilation compilation)
-        {
-            var newTrees = new SyntaxTree[compilation.SyntaxTrees.Length];
-
-            for (int i = 0; i < compilation.SyntaxTrees.Length; i++)
-            {
-                var tree = compilation.SyntaxTrees[i];
-                var root = tree.GetRoot();
-                var semanticModel = compilation.GetSemanticModel(tree);
-
-                //replace atomic local var dcl types
-                var allLocals = root.DescendantNodes().Where(node => node.IsKind(SyntaxKind.LocalDeclarationStatement)).Cast<LocalDeclarationStatementSyntax>().ToList();
-                var atomicLocals = allLocals.Where(node => node.Modifiers.Any(SyntaxKind.AtomicKeyword));
-
-                root = root.ReplaceNodes(atomicLocals, (oldnode, newnode) => ReplaceLocalVar(oldnode, semanticModel));
-                tree = SyntaxFactory.SyntaxTree(root, tree.Options, tree.FilePath);
-                newTrees[i] = tree;
-            }
-            return CSharpCompilation.Create(compilation.AssemblyName, newTrees, compilation.References, compilation.Options);
-        }
-
-        private static LocalDeclarationStatementSyntax ReplaceLocalVar(LocalDeclarationStatementSyntax aLocal, SemanticModel semanticModel)
-        {
-            //Remove atomic from modifier list
-            //var newLocalDecl = aLocal.WithModifiers(RemoveAtomicMod(aLocal.Modifiers));
-            var newLocalDecl = aLocal;
-            //Change declaration type to our TMVar type (or specific like TMInt)
-            newLocalDecl = newLocalDecl.WithDeclaration(ConstructVariableDeclaration(aLocal.Declaration, semanticModel));
-            return newLocalDecl;
-        }
-
-        private static SyntaxTokenList RemoveAtomicMod(SyntaxTokenList list)
+        internal static SyntaxTokenList RemoveAtomicMod(SyntaxTokenList list)
         {
             return RemoveModifiers(list, SyntaxKind.AtomicKeyword);
         }
 
-        private static SyntaxTokenList RemoveModifiers(SyntaxTokenList list, params SyntaxKind[] mods)
+        internal static SyntaxTokenList RemoveModifiers(SyntaxTokenList list, params SyntaxKind[] mods)
         {
             var newModifierList = list.Where(mod => !mods.Contains(mod.Kind()));
             return SyntaxFactory.TokenList(newModifierList);
         }
 
-        private static VariableDeclarationSyntax ConstructVariableDeclaration(VariableDeclarationSyntax aVarDcl, SemanticModel semanticModel = null)
+        internal static VariableDeclarationSyntax ConstructVariableDeclaration(VariableDeclarationSyntax aVarDcl, SemanticModel semanticModel = null)
         {
             var newTypeDcl = DetermineSTMType(aVarDcl.Type, semanticModel);
             
@@ -1383,30 +628,25 @@ namespace STMExtension
             return SyntaxFactory.VariableDeclaration(newTypeDcl, SyntaxFactory.SeparatedList<VariableDeclaratorSyntax>(buffer));
         }
 
-        private static ArgumentListSyntax CreateArgList(ExpressionSyntax expr)
+        internal static ArgumentListSyntax CreateArgList(ExpressionSyntax expr)
         {
             return CreateArgList(new List<ArgumentSyntax> { SyntaxFactory.Argument(expr) });
         }
 
-        private static ArgumentListSyntax CreateArgList(IEnumerable<ArgumentSyntax> args)
+        internal static ArgumentListSyntax CreateArgList(IEnumerable<ArgumentSyntax> args)
         {
             var argListContent = SyntaxFactory.SeparatedList(args);
             return SyntaxFactory.ArgumentList(SyntaxFactory.Token(SyntaxKind.OpenParenToken), argListContent, SyntaxFactory.Token(SyntaxKind.CloseParenToken));
         }
 
-        private static ObjectCreationExpressionSyntax CreateObjectCreationExpression(TypeSyntax typeSyntax, ArgumentListSyntax argList)
+        internal static ObjectCreationExpressionSyntax CreateObjectCreationExpression(TypeSyntax typeSyntax, ArgumentListSyntax argList)
         {
             return SyntaxFactory.ObjectCreationExpression(SyntaxFactory.Token(SyntaxKind.NewKeyword), typeSyntax, argList, null);
         }
 
-        private static string PreprendNameSpace(string str)
+        internal static string PreprendNameSpace(string str)
         {
             return STMNameSpace + "." + str;
-        }
-
-        private static string optinalTest(string myPar = "hej")
-        {
-            return null;
         }
     }
 }

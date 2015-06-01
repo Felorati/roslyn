@@ -69,11 +69,25 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CompilatonState.cs" />
     <Compile Include="ExtensionMethods.cs" />
     <Compile Include="ExtensionTests.cs" />
     <Compile Include="STM.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="STMAtomicModifiers.cs" />
+    <Compile Include="STMAtomicOrelse.cs" />
+    <Compile Include="STMAtomicOut.cs" />
+    <Compile Include="STMAtomicVariableUsage.cs" />
+    <Compile Include="STMConstructor.cs" />
     <Compile Include="STMErrorDescriptors.cs" />
+    <Compile Include="STMFields.cs" />
+    <Compile Include="STMLocalVars.cs" />
+    <Compile Include="STMMemberAccess.cs" />
+    <Compile Include="STMMethodArgs.cs" />
+    <Compile Include="STMParameters.cs" />
+    <Compile Include="STMProperties.cs" />
+    <Compile Include="STMRefOut.cs" />
+    <Compile Include="STMRetry.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
