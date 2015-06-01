@@ -9,9 +9,8 @@ namespace ExampleACSharp
 		
 		static void Main()
 		{
-			Console.WriteLine(SpecialIncrementMethod(5)); //TODO: Slet og udkommenter længere ned når de er fixed
-			Console.WriteLine(SpecialIncrementMethod(-5)); //gælder samme
 			Console.WriteLine("Start of Main");
+			
 			atomic int TestVar1;
 			atomic int TestVar2 = 100;
 			atomic string TestVar3;
@@ -19,11 +18,12 @@ namespace ExampleACSharp
 			
 			NormalMethod(5);
 			AtomicParamMethod(10);
-			AtomicOutParamMethod(TestVar1);
-			AtomicRefParamMethod(TestVar2);
-			//Console.WriteLine(SpecialIncrementMethod(5));
-			//Console.WriteLine(SpecialIncrementMethod(-5));
+			AtomicOutParamMethod(out TestVar1);
+			AtomicRefParamMethod(ref TestVar2);
+			Console.WriteLine(SpecialIncrementMethod(5));
+			Console.WriteLine(SpecialIncrementMethod(-5));
 			NestedAtomicMethod();
+			
 			Console.WriteLine("End of Main");
 		}
 		
@@ -33,7 +33,7 @@ namespace ExampleACSharp
 		
 		private static void AtomicParamMethod(atomic int par)
 		{
-			int = 5;
+			par = 5;
 		}
 		
 		private static void AtomicOutParamMethod(atomic out int par)
@@ -58,7 +58,7 @@ namespace ExampleACSharp
 			}
 		}
 
-		private static void NestedAtomicMethod(atomic int par)
+		private static void NestedAtomicMethod()
 		{
 			atomic{
 				atomic{
