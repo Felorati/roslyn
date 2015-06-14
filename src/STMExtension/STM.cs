@@ -26,9 +26,10 @@ namespace STMExtension
 
             CheckRetryPlacement(compilation, stmDiagnostics);
 
-            compilation = STMProperties.ReplaceProperties(compilation);
             compilation = STMAtomicOrelse.ReplaceAtomicOrElseBlocks(compilation);
             compilation = STMRetry.ReplaceRetryStatements(compilation);
+            compilation = STMIdentifyVariables.IdentifyVariables(compilation);
+            compilation = STMProperties.ReplaceProperties(compilation);
             compilation = STMMethodArgs.ReplaceMethodArguments(compilation);
             compilation = STMRefOut.ReplaceAtomicRefOut(compilation, stmDiagnostics, skipLists);
             compilation = STMAtomicOut.HandleAtomicOutParameters(compilation, skipLists);
@@ -647,6 +648,24 @@ namespace STMExtension
         internal static string PreprendNameSpace(string str)
         {
             return STMNameSpace + "." + str;
+        }
+
+        internal static bool HasAtomicModifier(SyntaxTokenList modifiers)
+        {
+            return HasModifier(modifiers, SyntaxKind.AtomicKeyword);
+        }
+
+        internal static bool HasModifier(SyntaxTokenList modifiers, SyntaxKind kind)
+        {
+            foreach (var mod in modifiers)
+            {
+                if (mod.IsKind(kind))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

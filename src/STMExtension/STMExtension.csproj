@@ -81,6 +81,7 @@
     <Compile Include="STMConstructor.cs" />
     <Compile Include="STMErrorDescriptors.cs" />
     <Compile Include="STMFields.cs" />
+    <Compile Include="STMIdentifyVariables.cs" />
     <Compile Include="STMLocalVars.cs" />
     <Compile Include="STMMemberAccess.cs" />
     <Compile Include="STMMethodArgs.cs" />

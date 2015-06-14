@@ -76,6 +76,10 @@ namespace STMExtension
         {
             // Generate backing field
             var modifiers = SyntaxFactory.TokenList(SyntaxFactory.Token(SyntaxKind.PrivateKeyword), SyntaxFactory.Token(SyntaxKind.AtomicKeyword));
+            if (STM.HasModifier(aPropertyDcl.Modifiers, SyntaxKind.StaticKeyword))
+            {
+                modifiers = modifiers.Add(SyntaxFactory.Token(SyntaxKind.StaticKeyword));
+            }
             var identifier = SyntaxFactory.Identifier(GenerateFieldName(aPropertyDcl.Identifier));
             var variableDeclarator = SyntaxFactory.VariableDeclarator(identifier);
             var variableDeclarators = SyntaxFactory.SeparatedList(new List<VariableDeclaratorSyntax>() { variableDeclarator });

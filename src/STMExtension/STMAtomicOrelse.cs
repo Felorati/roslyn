@@ -78,7 +78,7 @@ namespace STMExtension
             return atomicInvoNode;
         }
 
-        private static IEnumerable<AtomicStatementSyntax> GetAtomics(SyntaxNode root)
+        public static IEnumerable<AtomicStatementSyntax> GetAtomics(SyntaxNode root)
         {
             return root.DescendantNodes().OfType<AtomicStatementSyntax>();
         }
